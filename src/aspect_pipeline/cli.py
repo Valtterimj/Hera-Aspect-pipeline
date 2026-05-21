@@ -1,0 +1,46 @@
+import argparse
+
+from pathlib import Path
+from aspect_pipeline.utils.loggin_config import setup_logging
+from aspect_pipeline.utils.errors import PipelineError
+
+from aspect_pipeline.main import hello
+from aspect_pipeline.orchestrator import run_pipeline
+
+def main() -> None:
+    """
+    Command line interface for ASPECT pipeline.
+    Commands:
+    - run: runs the pipeline according to the configurations
+    - view: visualise a FITS file
+    - pds4: generate a PDS4 product according to the configurations
+    """
+
+    parser = argparse.ArgumentParser(prog="aspect")
+    sub = parser.add_subparsers(dest="cdm", required=True)
+
+    run = sub.add_parser("run", help="Run the pipeline")
+    run.add_argument(
+        "--config",
+        default=None,
+        help="Path to YAML configurations. If omitted, searches for configs/example.yaml"
+    )
+
+
+    sub.add_parser("test", help="Run a minimal pipeline test")
+
+    args = parser.parse_args()
+
+    setup_logging('INFO')
+
+    try: 
+        if args.cdm == "run":
+            config_path = Path(args.config).expanduser() if args.config else None
+            run_pipeline(config_path=config_path)
+        if args.cdm == "test":
+            hello()
+    except PipelineError as e:
+        raise SystemExit()
+
+if __name__ == "__main__":
+    main()

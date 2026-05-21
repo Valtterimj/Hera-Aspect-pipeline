@@ -1,14 +1,26 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "hera-aspect-pipeline"
 version = "0.1.0"
 description = "The ASPECT data processing pipeline was developed to address the need for accurate calibration of instrument data, to integrate data from the four sensors, and to apply analysis algorithms to ASPECT's hyperspectral data cubes."
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "astropy>=7.2.0",
+    "matplotlib>=3.10.9",
+    "numpy>=2.4.6",
+    "pandas>=3.0.3",
+    "pyyaml>=6.0.3",
+    "scipy>=1.17.1",
+    "spiceypy>=8.1.0",
+    "xarray>=2026.4.0",
+]
 
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+[project.scripts]
+aspect = "aspect_pipeline.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/aspect_pipeline"]

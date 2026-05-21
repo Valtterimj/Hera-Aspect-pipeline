@@ -1,0 +1,139 @@
+# ========================================================
+# Hera Aspect data processing pipeline 
+# Example configuration file example
+# 
+# Usage:
+# aspect run --config configs/example.yaml
+#
+# Copy this file to e.g.:
+#   configs/pipeline.yaml
+# and edit the paths and settings as needed.
+# For detailed descriptions of the fields check README.md
+# ========================================================
+
+
+# --------------------------------------------------------
+# Run-time settings
+# 
+# --------------------------------------------------------
+run:
+
+  # (Required) Path to input data. Relative to this config file or absolute.
+  input_dir: "../data/simulated/didy-boulders-didysmoothed-10km"
+
+  # (Optional) Root output directory for generated products. Absolute or empty. If left empty the files are saved to outputs/<missphase>.
+  output_dir: ""
+
+  # (Optional) SPICE meta kernel path. Should be absolute. Optional only from the pipeline perspective.
+  spice_dir: "/Users/valtterimj/Downloads/Work/Aalto/Hera/hera_spice/kernels/mk/hera_plan.tm"
+
+  # Overwrite existing outputs if they already exists
+  overwrite: true
+
+# --------------------------------------------------------
+# Calibration settings
+#   all calibration related files should be inside calibration_dir.
+#   Define the relative paths to specific files inside the calibration dir.
+#   
+# --------------------------------------------------------
+calibration: 
+
+  # (Required for level 1) Path to directory containing calibration files. Relative to this config file or absolute.
+  calibration_dir: "../calibration"
+
+  # Dark background directory. relative inside calibration_dir. Used as calibrarion_dir / dark
+  # Dark should be fits file with the frame is in the PrimaryHDU
+  dark: "DARKS"
+
+  # Flat field directory.
+  # Flat should be fits file with the frame is in the PrimaryHDU
+  flat: "FLATS"
+
+  # Bad pixel list as a txt file.
+  badpixels: "BADPIXELS"
+
+  # Radiance conversion data directory
+  radiance: "RADIANCE"
+
+  # Solar spectral irradiance
+  # Should be csv file
+  solar_ssi: "SOLAR/ssi_yearly_avg_e2024_c20250221.csv"
+
+
+# --------------------------------------------------------
+# Metadata settings
+# All these fields are required for the pipeline to work
+# --------------------------------------------------------
+data:
+
+  # Camera ID
+  instrume: "ASPECT"
+
+  # Mission
+  origin: "ESA-HERA"
+
+  # Software identification
+  swcreate: "ASPECTCAL"
+
+  # Mission phase ID
+  missphas: "simulated"
+
+  # Mission observation ID
+  observ: "pipeline-testing"
+
+  # Observed target
+  object: "dark"
+
+  # Observed target (SPICE)
+  target: "DARK"
+
+  # Solar distance
+  # Manually set the solar distance, used in reflectance calibration.
+  # Warning setting this value will override the solar distance from SPICE kernel
+  # usage: solar disrtance in AU E.G. "1" or "1.2" | "" or None if not used.
+  solar_d: ""
+
+
+# --------------------------------------------------------
+# Pipeline settings
+# All these fields are required for the pipeline to work
+# --------------------------------------------------------
+pipeline:
+
+  # List of pipeline levels to execute.
+  # Values: "0", "1", "1A", "1B", "1C", "2B", "3", "3A", "3B", "3C"
+  # E.g. ["0","1"]
+  levels: ["0"]
+
+  # List of channels included in processin
+  # Values: "Vis", "NIR1", "NIR2", "SWIR"
+  # E.g. ["NIR1", "NIR2"]
+  channels: ["Vis", "NIR1", "NIR2"]
+
+
+# --------------------------------------------------------
+# PDS4 settings
+# These are only used for generating PDS4 label
+# --------------------------------------------------------
+pds4:
+
+  # (required fpr pds4) relative to this file or absolute
+  # The directory or file that contains the file(s) that the label is generated for
+  input: "../outputs/000_test2"
+
+  # (Required for pds4) Path to directory containing the templates. Relative to this config file or absolute.
+  templates_dir: "../pds4_templates"
+
+  # (optional) Root output directory for generated products. Absolute or empty. If left empty the files are saved to input/pds4/.
+  output: ""
+
+  # (optional) A list of processing levels that the products are generated for. 
+  # If input is a file this is not necessary. 
+  # Setting input to point to a directory and listing here the processing levels allows to generate multiple pds4 labels.
+  # Values: "0", "1", "1A", "1B", "1C", "2B", "3", "3A", "3B", "3C"
+  # E.g. ["0","1"]
+  products: ["0", "1"]
+
+  # (optional) A list of channels that the products are generated for
+  # Values: "Vis", "NIR1", "NIR2", "SWIR"
+  channels: ["NIR1", "NIR2"]
