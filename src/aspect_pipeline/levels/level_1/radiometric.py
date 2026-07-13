@@ -1,0 +1,139 @@
+import numpy as np
+from astropy.io.fits import HDUList
+from pathlib import Path
+import pandas as pd
+
+from aspect_pipeline.utils.classes import Issue
+from aspect_pipeline.utils.errors import CalibrationError
+
+"""
+Function for converting the pixel values into scientific units.
+
+    Description:
+        - Iterated over all 2D images inside the data cube multiplying it with a coefficient.
+        - Creates a new FITS file with the calibrated data
+"""
+
+def parse_radiance_file(txt_path: str | Path) -> pd.DataFrame: 
+    """
+    Parse a tab-separated radiance clibration file into a Pandas DataFrame
+    Reads 4 columns (Wl[nm, Resp.[DN/s], Radiance[W/m2/nm/sr], Response[DN/(s*W/m2/sr/nm)])
+    Converts to numeric, drops invalid and keeors the last duplicate, sorts by wavelength.
+
+    Returns a DataFrane with columns:
+    ['wl_nm', 'resp_dn_s', 'radiance_w_m2_nm_sr', 'response_dn_per_w']
+    """
+    try:
+        df = pd.read_csv(
+            txt_path,
+            sep=r"\t+",
+            engine="python",
+            comment="#",
+        )
+
+        df.columns = [c.strip() for c in df.columns]
+
+        expected_cols = 4
+        if df.shape[1] != expected_cols:
+            raise ValueError(f"Expected {expected_cols} columns, got {df.shape[1]} in {txt_path}")
+        
+        df.columns = ["wl_nm", "resp_dn_s", "radiance_w_m2_nm_sr", "response_dn_per_w"]
+
+        for c in df.columns:
+            df[c] = pd.to_numeric(df[c].astype(str).str.strip(), errors='coerce')
+        
+        df = df.dropna(subset=["wl_nm"]).reset_index(drop=True)
+
+        df = df.drop_duplicates(subset=['wl_nm'], keep="last")
+
+        df = df.sort_values("wl_nm").reset_index(drop=True)
+
+        return df
+    except Exception as e:
+        raise CalibrationError(f'Failed to parse radiance file: {txt_path}; reason: {e}')
+
+def interp_values(df: pd.DataFrame, wl: float) -> dict:
+    x = df["wl_nm"].to_numpy()
+    out = {}
+    for col in ["resp_dn_s", "radiance_w_m2_nm_sr", "response_dn_per_w"]:
+        y = df[col].to_numpy()
+        out[col] = float(np.interp(wl, x, y))
+    
+    return out
+
+def radiometric_calibration(hdul: HDUList, radiance_file: Path) -> HDUList:
+    """
+    Function for converting the pixel values into scientific units.
+
+    Parmeters:
+        hdul (HDUList): The HDU list of the FITS file that is modified
+    
+    Returns:
+        The modified HDU list of the FITS file
+    """
+
+    all_issues: list[Issue] = []
+
+    # Data from fits file
+    hdu = hdul[0]
+    header = hdu.header
+    data = hdu.data
+    channel = header.get('CHANNELS')
+
+    try: 
+
+        df = parse_radiance_file(radiance_file)
+
+        # Get task information from header
+        frames = header.get(f'{channel}_FRAMES').split(',')
+
+        new_data_cube = data.astype(np.float64, copy=True)
+
+        for i, frame in enumerate(frames):
+            image = new_data_cube[i]
+            wl = header.get(f'{channel}_WL_{frame}')
+            exposure = header.get(f'{channel}_EXP_{frame}')
+            if wl == None:
+                all_issues.append(
+                    Issue(
+                        level='warning',
+                        message=f'No wavelength data found for {channel} frame {frame}. Skipping the frame.',
+                        source=__name__
+                    )
+                )
+                continue
+            if exposure == None:
+                all_issues.append(
+                    Issue(
+                        level='warning',
+                        message=f'No exposure data found for {channel} frame {frame}. Skipping the frame.',
+                        source=__name__
+                    )
+                )
+                continue
+
+            interp_vals = interp_values(df, float(wl))
+            response = float(interp_vals.get('response_dn_per_w'))
+            coefficient = float(exposure) * response
+
+            new_data_cube[i] = image / coefficient
+        
+        hdul[0].data = new_data_cube
+        all_issues.append(
+            Issue(
+                level='info',
+                message=f'{channel} radiometrically calibrated.',
+                source=__name__,
+            )
+        )
+
+    except Exception as e:
+        all_issues.append(
+            Issue(
+                level='warning',
+                message=f'{channel} radiometric calibration failed: {e}',
+                source=__name__,
+            )
+        )
+
+    return hdul, all_issues

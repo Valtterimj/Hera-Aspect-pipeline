@@ -17,6 +17,8 @@ def run_pipeline(config_path: Path | None) -> None:
     Main function to run the calibration and data analysis pipeline for Hera ASPECT instrument.
     """
 
+    #TODO: adjust the calibration conversion values and test level 1 run for all channels.
+
     issues: list[Issue] = []
 
     logger.info(f"Starting the main pipeline. Config file provided: {config_path}")

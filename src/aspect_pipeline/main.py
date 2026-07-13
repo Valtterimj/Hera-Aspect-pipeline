@@ -6,6 +6,7 @@ from aspect_pipeline.utils.errors import PipelineError
 
 from aspect_pipeline.config import load_config
 
+#NOTE: This is for testing
 def hello():
     print("Hello from hera-aspect-pipeline!")
     logger.info("Hello from hera-aspect-pipeline")
