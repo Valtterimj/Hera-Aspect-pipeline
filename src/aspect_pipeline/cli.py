@@ -6,6 +6,7 @@ from aspect_pipeline.utils.errors import PipelineError
 
 from aspect_pipeline.main import hello
 from aspect_pipeline.orchestrator import run_pipeline
+from aspect_pipeline.utils.visualise import visualise_fits_file
 
 def main() -> None:
     """
@@ -29,6 +30,13 @@ def main() -> None:
 
     sub.add_parser("test", help="Run a minimal pipeline test")
 
+    view = sub.add_parser("view", help="Visulise a fits file")
+    view.add_argument(
+        "--file",
+        default=None,
+        help="Path to the FITS file to visualise"
+    )
+
     args = parser.parse_args()
 
     setup_logging('INFO')
@@ -39,6 +47,11 @@ def main() -> None:
             run_pipeline(config_path=config_path)
         if args.cdm == "test":
             hello()
+        if args.cdm == "view":
+            if not args.file:
+                print("Missing required argument: --file path/to/file.fits")
+            else:
+                visualise_fits_file(Path(args.file).expanduser())
     except PipelineError as e:
         raise SystemExit()
 

@@ -63,7 +63,7 @@ def extract_cds_pixels(hdul: HDUList) -> tuple[HDUList, list[Issue]]:
     data = hdu.data
     channel = header.get('CHANNELS')
 
-    if channel == 'MIR':
+    if channel in ('Vis', 'SWIR'):
         return hdul, all_issues
     else:
         try:

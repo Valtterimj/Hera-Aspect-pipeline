@@ -12,3 +12,8 @@ wheels/
 data/
 
 outputs/
+
+
+# claude
+.claude/
+CLAUDE.md

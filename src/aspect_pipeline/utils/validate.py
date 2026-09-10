@@ -5,6 +5,7 @@ from typing import Any, Literal, Sequence, get_args
 
 from aspect_pipeline.utils.errors import ValidationError
 from aspect_pipeline.utils.classes import Level, Channel, InputLayout
+from aspect_pipeline.utils.utilities import channel_to_id
 
 
 ALLOWED_LEVELS = list(get_args(Level))
@@ -191,7 +192,7 @@ def _validate_level_0_input_dir(input_dir: Path) -> InputLayout:
         acquisition_dir=acq_dir,
     )
 
-def _resolve_level_fits_path(input_dir: Path, channel: str,  lvl: str) -> Path:
+def _get_path(input_dir: Path, channel: str,  suffix: str) -> Path:
     """
         Resolve to path to correct fits file inside the input_dir according to the lvl.
         E.g. if lvl = 1B the input dir should contain a file ending to '*1A.fits'
@@ -199,12 +200,12 @@ def _resolve_level_fits_path(input_dir: Path, channel: str,  lvl: str) -> Path:
     if not input_dir.exists() or not input_dir.is_dir():
         raise ValidationError(f"Not a valid input directory found.")
     
-    suffix = f"{lvl}.fits"
     matches = list(input_dir.glob(f"*{suffix}"))
-    matches = [p for p in matches if p.name.startswith(channel)]
+    channel_id = f'AS{channel_to_id[channel]}'
+    matches = [p for p in matches if p.name.startswith(channel_id)]
 
     if not matches:
-        raise ValidationError(f"No level '{lvl}' file for channel '{channel}' found in {input_dir}.")
+        raise ValidationError(f"No file with suffix '{suffix}' for channel '{channel}' found in {input_dir}.")
     
     return matches[0]
 

@@ -3,6 +3,7 @@ from pathlib import Path
 from astropy.io import fits 
 
 from aspect_pipeline.utils.utilities import convert_to_float64, convert_to_float32
+from aspect_pipeline.utils.validate import _get_path
 from aspect_pipeline.utils.errors import PipelineError
 from aspect_pipeline.utils.classes import Issue, CalibConfig
 from aspect_pipeline.levels.level_1.extract_cds import extract_cds_pixels
@@ -17,6 +18,7 @@ def run_level_1b(fits_file: Path, output_dir: Path, calibration: CalibConfig, ch
 
     with fits.open(fits_file, memmap=False) as hdul:
 
+        order = hdul[0].header.get('ORDER')
 
         # Convert the data to float64 for calibration
         hdul, issue = convert_to_float64(hdul)
@@ -28,18 +30,21 @@ def run_level_1b(fits_file: Path, output_dir: Path, calibration: CalibConfig, ch
 
         calibration_dir = Path(calibration.calibration_dir)
         # Subtrack the dark frame from each image
-        dark = calibration_dir / calibration.dark
-        hdul, issues = dark_subtraction(hdul, dark)
+        dark_dir = calibration_dir / calibration.dark
+        dark_file = _get_path(input_dir=dark_dir, channel=channel, suffix=f'{order}.fits')
+        hdul, issues = dark_subtraction(hdul, dark_file)
         all_issues.extend(issues)
 
         # Apply flatfield correction
-        flat = calibration_dir / calibration.flat
-        hdul, issues = flat_field_calibration(hdul, flat)
+        flat_dir = calibration_dir / calibration.flat
+        flat_file = _get_path(input_dir=flat_dir, channel=channel, suffix=f'{order}.fits')
+        hdul, issues = flat_field_calibration(hdul, flat_file)
         all_issues.extend(issues)
 
         # Replace bad pixels with neigbours
-        badpixels = calibration_dir / calibration.badpixels
-        hdul, issues = replace_bad_pixels(hdul, bp_file=badpixels)
+        badpixels_dir = calibration_dir / calibration.badpixels
+        bp_file = _get_path(input_dir=badpixels_dir, channel=channel, suffix=f'.txt')
+        hdul, issues = replace_bad_pixels(hdul, bp_file=bp_file)
         all_issues.extend(issues)
 
         if extra:
@@ -81,14 +86,10 @@ def run_level_1b(fits_file: Path, output_dir: Path, calibration: CalibConfig, ch
                 )
             )
 
-        # Apply radiometric calibration
-        if channel == 'NIR':
-            radiance = calibration.nir_radiance
-        else:
-            radiance = calibration.mir_radiance
 
-        radiance_coefs = calibration_dir / radiance
-        hdul, issues = radiometric_calibration(hdul, radiance_file=radiance_coefs)
+        radiance_dir = calibration_dir / calibration.radiance
+        radiance_file = _get_path(input_dir=radiance_dir, channel=channel, suffix=f'{order}.txt')
+        hdul, issues = radiometric_calibration(hdul, radiance_file=radiance_file)
         all_issues.extend(issues)
 
         hdul, issue = convert_to_float32(hdul)

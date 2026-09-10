@@ -29,6 +29,11 @@ id_to_channel = {
     3 : "SWIR"
 }
 
+level_shortcuts = {
+    "1": ("1A", "1B", "1C"),
+    "3": ("3A", "3B", "3C"),
+}
+
 def parse_levels_to_run(levels: list[str]) -> list[str]:
     levels_to_run: list[str] = []
     seen: set[str] = set()
@@ -37,16 +42,14 @@ def parse_levels_to_run(levels: list[str]) -> list[str]:
         if level not in seen:
             levels_to_run.append(level)
             seen.add(level)
-    
-    if "1" in levels:
-        for level in ("1A", "1B", "1C"):
-            add(level)
+
     for level in levels:
-        if level == "1":
-            continue
-        if level.startswith("1"):
+        if level in level_shortcuts:
+            for expanded in level_shortcuts[level]:
+                add(expanded)
+        else:
             add(level)
-    
+
     return levels_to_run
 
 def get_current_utc_time_str():
