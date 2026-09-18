@@ -1,31 +1,28 @@
 from pathlib import Path
 
-from aspect_pipeline.utils.classes import Issue, Config, CalibConfig
-from aspect_pipeline.utils.utilities import parse_levels_to_run
-from aspect_pipeline.utils.validate import _get_path
+from aspect_pipeline.utils.classes import Issue, Config
+from aspect_pipeline.levels.level_2.merge_channels import merge_fits_files
 
-def run_level_2(cfg: Config, channel: str) -> tuple[Path, list[Issue]]:
+def run_level_2(cfg: Config) -> tuple[Path, list[Issue]]:
     """
     main fucntion to run the level 2.
     """
     all_issues: list[Issue] = []
 
-    levels = cfg.pipeline.levels
-    levels_to_run = parse_levels_to_run(levels=levels)
-        
-    if '2' in levels_to_run:
-        input_dir = cfg.run.input_dir
-        output_dir = cfg.run.output_dir
-        fits_path, issues = run_level_2(fits_file=input_dir, output_dir=output_dir)
+    input_dir = cfg.run.input_dir
+    out_dir = cfg.run.output_dir
+    channels = cfg.pipeline.channels
 
-        all_issues.extend(issues)
-        all_issues.append(
-                        Issue(
-                            level="info",
-                            message=(f"Level 1B completed."),
-                            source=__name__,
-                        )
+    fits, issues = merge_fits_files(input_dir=input_dir, channels=channels, output_dir=out_dir)
+    for issue in issues:
+        all_issues.append(issue)
+
+    all_issues.append(
+                    Issue(
+                        level="info",
+                        message=(f"Level 1B completed."),
+                        source=__name__,
                     )
+                )
     
-
-    return fits_path, all_issues 
+    return fits, all_issues 

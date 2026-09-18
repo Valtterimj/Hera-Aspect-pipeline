@@ -104,12 +104,12 @@ pipeline:
   # List of pipeline levels to execute.
   # Values: "0", "1", "1A", "1B", "1C", "2B", "3", "3A", "3B", "3C"
   # E.g. ["0","1"]
-  levels: ["0", "1"]
+  levels: ["0", "1", "2"]
 
   # List of channels included in processin
   # Values: "Vis", "NIR1", "NIR2", "SWIR"
   # E.g. ["NIR1", "NIR2"]
-  channels: ["Vis"]
+  channels: ["Vis", "NIR1", "NIR2"]
 
 
 # --------------------------------------------------------

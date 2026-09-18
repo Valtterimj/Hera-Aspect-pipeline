@@ -6,7 +6,8 @@ from aspect_pipeline.utils.errors import PipelineError
 
 from aspect_pipeline.main import hello
 from aspect_pipeline.orchestrator import run_pipeline
-from aspect_pipeline.utils.visualise import visualise_fits_file
+from aspect_pipeline.utils.visualise import visualise_fits_file, visualise_bin_file
+from aspect_pipeline.utils.test_set import make_test_set
 
 def main() -> None:
     """
@@ -15,6 +16,7 @@ def main() -> None:
     - run: runs the pipeline according to the configurations
     - view: visualise a FITS file
     - pds4: generate a PDS4 product according to the configurations
+    - make-test-set: generate a synthetic raw/calibration test set
     """
 
     parser = argparse.ArgumentParser(prog="aspect")
@@ -30,11 +32,29 @@ def main() -> None:
 
     sub.add_parser("test", help="Run a minimal pipeline test")
 
-    view = sub.add_parser("view", help="Visulise a fits file")
-    view.add_argument(
-        "--file",
+    view = sub.add_parser("view", help="Visualise a fits or bin file")
+    view_group = view.add_mutually_exclusive_group(required=True)
+    view_group.add_argument(
+        "--fits",
         default=None,
         help="Path to the FITS file to visualise"
+    )
+    view_group.add_argument(
+        "--bin",
+        default=None,
+        help="Path to the .bin file to visualise"
+    )
+
+    make_test = sub.add_parser("make-test-set", help="Generate a synthetic raw/calibration test set")
+    make_test.add_argument(
+        "--input",
+        required=True,
+        help="Output directory for raw per-channel frames"
+    )
+    make_test.add_argument(
+        "--calibration",
+        required=True,
+        help="Output directory for calibration files (TEST_DARK/, TEST_FLATS/)"
     )
 
     args = parser.parse_args()
@@ -48,10 +68,12 @@ def main() -> None:
         if args.cdm == "test":
             hello()
         if args.cdm == "view":
-            if not args.file:
-                print("Missing required argument: --file path/to/file.fits")
-            else:
-                visualise_fits_file(Path(args.file).expanduser())
+            if args.fits:
+                visualise_fits_file(Path(args.fits).expanduser())
+            elif args.bin:
+                visualise_bin_file(Path(args.bin).expanduser())
+        if args.cdm == "make-test-set":
+            make_test_set(Path(args.input).expanduser(), Path(args.calibration).expanduser())
     except PipelineError as e:
         raise SystemExit()
 

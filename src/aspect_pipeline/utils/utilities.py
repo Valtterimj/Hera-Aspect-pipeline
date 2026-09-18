@@ -236,6 +236,21 @@ def convert_to_float32(hdul: HDUList, index: int = 0) -> tuple[HDUList, Issue]:
         )
     return hdul, issue
 
+def normalize_to_8bit(img: np.ndarray) -> np.ndarray:
+    # Compute min and max values in the image
+    min_val = np.min(img)
+    max_val = np.max(img)
+
+    # Avoid division by zero in case all values are the same
+    if max_val - min_val == 0:
+        return np.zeros_like(img, dtype=np.uint8)
+
+    # Normalize image to range 0-255
+    normalized = (img - min_val) / (max_val - min_val) * 255.0
+
+    # Convert to 8-bit integer
+    return normalized.astype(np.uint8)
+
 def find_fits_files(directory: Path, levels: list[str], channel: list[str]) -> tuple[list[Path], list[str]]:
     """
     Search a directory for .fits files matching given level endings.
@@ -384,3 +399,31 @@ def check_order(sp: float, channel: str) -> str:
                 return 'LOW'
         case 'SWIR':
             return 'N/A'
+
+def get_path(input_dir: Path, channel: str,  suffix: str) -> Path | None:
+    """
+        Resolve to path to correct fits file inside the input_dir according to the lvl.
+        E.g. if lvl = 1B the input dir should contain a file ending to '*1A.fits'
+    """
+    if not input_dir.exists() or not input_dir.is_dir():
+        raise ValueError(f"Not a valid input directory found.")
+    
+    matches = list(input_dir.glob(f"*{suffix}"))
+    channel_id = f'AS{channel_to_id[channel]}'
+    matches = [p for p in matches if p.name.startswith(channel_id)]
+
+    if not matches:
+        return None
+
+    # Return first if many
+    return matches[0]
+
+def get_frame(fits_path: Path, frame: int) -> np.ndarray:
+    """Return the frame from the fits Primary HDU"""
+    with fits.open(fits_path) as hdul:
+        data = hdul[0].data
+        if data is None:
+            raise ValueError(f"{fits_path}: primary HDU contains no data")
+        if not 0 <= frame < len(data):
+            raise IndexError(f"{fits_path}: frame {frame} out of range (0-{len(data) - 1})")
+        return np.array(data[frame])

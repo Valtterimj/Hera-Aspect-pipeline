@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Sequence, Literal, Optional
 
-Level = Literal["0A", "1A", "1B", "1C", "2B", "3A", "3B", "3C"]
+Level = Literal["0A", "1A", "1B", "1C","2", "2B", "3A", "3B", "3C"]
 Channel = Literal["Vis", "NIR1", "NIR2", "SWIR"]
 IssueLevel = Literal["info", "warning", "error"]
 
