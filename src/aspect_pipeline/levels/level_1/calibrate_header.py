@@ -10,7 +10,7 @@ from aspect_pipeline.utils.calib_conversions import det_temp_conversion, fpi_tem
 
 
 
-def calibrate_header(fits_path: Path, output_dir: Path, channel: str) -> tuple[str, list[Issue]]:
+def calibrate_header(fits_path: Path, output_dir: Path, channel: str, drop_frame: bool) -> tuple[str, list[Issue]]:
     """
     Parmeters:
         fits_path: Path to the FITS file.
@@ -29,6 +29,7 @@ def calibrate_header(fits_path: Path, output_dir: Path, channel: str) -> tuple[s
         new_hdul = fits.HDUList([hdu.copy() for hdu in hdul])
         hdu = new_hdul[0]
         header = hdu.header
+        order = header.get('ORDER')
             
         for ch in ['Vis', 'NIR1', 'NIR2', 'SWIR']:
             
@@ -66,7 +67,7 @@ def calibrate_header(fits_path: Path, output_dir: Path, channel: str) -> tuple[s
                         raise ValueError(f"FPI {i} temperature missing.")
                     
                     dn = float(fpi_temp)
-                    c, k = fpi_temp_conversion(dn, i)
+                    c, k = fpi_temp_conversion(dn, ch, i)
                     val = f'{k:.2f}' if isinstance(k, numbers.Number) else str(k)
                     c_str = f'{c:.2f}' if isinstance(c, numbers.Number) else str(c)
                     com = f'{ch} FPI {i} temperature [K] ({c_str} [C])'
@@ -104,10 +105,10 @@ def calibrate_header(fits_path: Path, output_dir: Path, channel: str) -> tuple[s
             values = [float(value) for value in setpoint1] 
 
             task_idx = header.index(f'{channel}_TASK_NUMBER')
-            task_idx += tn # index to insert new fields in chronological order
+            task_idx += tn + 1 # index to insert new fields in chronological order
             for i, val in enumerate(values):
                 num = f'{i:03d}' # e.g. 1 -> '001'
-                wl = wavelength_conversion(val, channel) # convert DN values to nm
+                wl = wavelength_conversion(val, channel, order) # convert DN values to nm
                 com = f'{channel} TASK {num} wavelength [nm]'
                 value, comment = form_fits_header_val(key=f'{channel}_WL_{num}', value=wl, comment=com, hierarch=True)
                 header.insert(task_idx, (f'HIERARCH {channel}_WL_{num}', value, comment), after=True)
@@ -137,7 +138,7 @@ def calibrate_header(fits_path: Path, output_dir: Path, channel: str) -> tuple[s
             values = [float(value) for value in setpoint1] 
 
             task_idx = header.index(f'{channel}_TASK_NUMBER')
-            task_idx += tn * 2
+            task_idx += tn * 2 + 1
             for i, val in enumerate(values):
                 num = f'{i:03d}'
                 exp = exposure_conversion(val, channel)
@@ -156,6 +157,26 @@ def calibrate_header(fits_path: Path, output_dir: Path, channel: str) -> tuple[s
                         source=__name__,
                     )
                 )
+
+        # Drop the first frame from the data cube and its header entries
+        if drop_frame:
+            frames = header.get(f'{channel}_FRAMES').split(',')
+            dropped_frame = frames[0]
+            header[f'{channel}_FRAMES'] = ','.join(frames[1:])
+
+            for key in (f'{channel}_EXP_{dropped_frame}', f'{channel}_WL_{dropped_frame}'):
+                if key in header:
+                    del header[key]
+
+            hdu.data = hdu.data[1:]
+
+            all_issues.append(
+                Issue(
+                    level="info",
+                    message=(f"Dropped first frame ({dropped_frame}) from {channel} data cube and header."),
+                    source=__name__,
+                )
+            )
 
         # Create new fits file name and write
         stem = fits_path.stem

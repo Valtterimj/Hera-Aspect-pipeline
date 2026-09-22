@@ -124,11 +124,9 @@ def _validate_float_string(value) -> str | None:
 
 def _validate_output_dir(output_dir: Path | None, missphas: str, base_dir: Path | None = None) -> Path:
 
-    if output_dir is not None and not output_dir.exists():
-        raise ValidationError(f"Output path does not exists: {output_dir}")
     if output_dir:
         output_path = output_dir.expanduser()
-        if not output_path.is_dir():
+        if output_path.exists() and not output_path.is_dir():
             raise ValidationError(f"Output path exists but is not a directory: {output_path}")
         base_output = output_path
     else:

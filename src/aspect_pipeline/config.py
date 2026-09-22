@@ -127,11 +127,8 @@ def _parse_config_dict(raw: dict[str, Any], *, config_path: Path) -> Config:
 
         calibration = CalibConfig(
             calibration_dir=_validate_path(_resolve_path(_require_str(cal_raw, "calibration_dir"), base_dir)),
-            dark=_resolve_str(cal_raw, "dark"),
-            flat=_resolve_str(cal_raw, "flat"),
-            badpixels=_resolve_str(cal_raw, "badpixels"),
-            radiance=_resolve_str(cal_raw, "radiance"),
-            solar_ssi=_resolve_str(cal_raw, "solar_ssi"),
+            solar_ssi=_validate_path(_resolve_path(_require_str(cal_raw, "solar_ssi"), base_dir)),
+            drop_frame=_require_bool(cal_raw, "drop_first_frame"),
         )
 
         data = DataConfig(

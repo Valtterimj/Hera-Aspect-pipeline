@@ -399,9 +399,9 @@ def collect_instrument_specific_metadata(config_path: Path, acq_path: Path, chan
             )
         )
     if task_number > 3:
-        order = check_order(taskValues[3][0], channel)
+        order = check_order(taskValues[3][1], channel)
     elif task_number >= 1:
-        order = check_order(taskValues[-1][0], channel)
+        order = check_order(taskValues[-1][1], channel)
         issues.append(
             Issue(
                 level="info",

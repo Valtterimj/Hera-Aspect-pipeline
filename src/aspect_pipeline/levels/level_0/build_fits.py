@@ -28,7 +28,7 @@ def add_entries_to_header(hdr: Header, entries: object, hierarch: bool = False) 
             continue
 
         card_length = len(k) + len(value) + len(comment) + 4
-        if card_length <= 80:
+        if card_length < 80:
             hdr[k] = (value, comment)
         else: 
             hdr[k] = (value, "")

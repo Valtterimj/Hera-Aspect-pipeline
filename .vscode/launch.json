@@ -1,0 +1,15 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "aspect run",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "aspect_pipeline.cli",
+            "args": ["run", "--config", "configs/example.yaml"],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "justMyCode": false
+        }
+    ]
+}

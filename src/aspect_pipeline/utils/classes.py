@@ -16,11 +16,8 @@ class RunConfig:
 @dataclass(frozen=True)
 class CalibConfig:
     calibration_dir: Path
-    dark: str | None
-    flat: str | None
-    badpixels: str | None
-    radiance: str | None
-    solar_ssi: str | None
+    solar_ssi: Path
+    drop_frame: bool
 
 @dataclass(frozen=True)
 class DataConfig:

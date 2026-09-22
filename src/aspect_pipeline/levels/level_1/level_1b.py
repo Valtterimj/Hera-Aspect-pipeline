@@ -2,7 +2,7 @@
 from pathlib import Path
 from astropy.io import fits 
 
-from aspect_pipeline.utils.utilities import convert_to_float64, convert_to_float32
+from aspect_pipeline.utils.utilities import convert_to_float64, convert_to_float32, channel_to_id
 from aspect_pipeline.utils.validate import _get_path
 from aspect_pipeline.utils.errors import PipelineError
 from aspect_pipeline.utils.classes import Issue, CalibConfig
@@ -30,19 +30,20 @@ def run_level_1b(fits_file: Path, output_dir: Path, calibration: CalibConfig, ch
 
         calibration_dir = Path(calibration.calibration_dir)
         # Subtrack the dark frame from each image
-        dark_dir = calibration_dir / calibration.dark
-        dark_file = _get_path(input_dir=dark_dir, channel=channel, suffix=f'{order}.fits')
+        dark_dir = calibration_dir / 'DARKS'
+        id = channel_to_id[channel]
+        dark_file = dark_dir / f'AS{id}_DARKS.fits'
         hdul, issues = dark_subtraction(hdul, dark_file)
         all_issues.extend(issues)
 
         # Apply flatfield correction
-        flat_dir = calibration_dir / calibration.flat
+        flat_dir = calibration_dir / 'FLATS'
         flat_file = _get_path(input_dir=flat_dir, channel=channel, suffix=f'{order}.fits')
         hdul, issues = flat_field_calibration(hdul, flat_file)
         all_issues.extend(issues)
 
         # Replace bad pixels with neigbours
-        badpixels_dir = calibration_dir / calibration.badpixels
+        badpixels_dir = calibration_dir / 'BADPIXELS'
         bp_file = _get_path(input_dir=badpixels_dir, channel=channel, suffix=f'.txt')
         hdul, issues = replace_bad_pixels(hdul, bp_file=bp_file)
         all_issues.extend(issues)
@@ -87,7 +88,7 @@ def run_level_1b(fits_file: Path, output_dir: Path, calibration: CalibConfig, ch
             )
 
 
-        radiance_dir = calibration_dir / calibration.radiance
+        radiance_dir = calibration_dir / 'RADIANCE'
         radiance_file = _get_path(input_dir=radiance_dir, channel=channel, suffix=f'{order}.txt')
         hdul, issues = radiometric_calibration(hdul, radiance_file=radiance_file)
         all_issues.extend(issues)

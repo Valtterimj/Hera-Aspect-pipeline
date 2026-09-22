@@ -13,6 +13,8 @@ data/
 
 outputs/
 
+# MACOS
+.DS_STORE
 
 # claude
 .claude/
