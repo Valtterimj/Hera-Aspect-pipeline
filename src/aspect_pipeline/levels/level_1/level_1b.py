@@ -18,7 +18,7 @@ def run_level_1b(fits_file: Path, output_dir: Path, calibration: CalibConfig, ch
 
     with fits.open(fits_file, memmap=False) as hdul:
 
-        order = hdul[0].header.get('ORDER')
+        order = hdul[0].header.get(f'{channel}_ORDER')
 
         # Convert the data to float64 for calibration
         hdul, issue = convert_to_float64(hdul)

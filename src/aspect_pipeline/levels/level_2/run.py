@@ -20,7 +20,7 @@ def run_level_2(cfg: Config) -> tuple[Path, list[Issue]]:
     all_issues.append(
                     Issue(
                         level="info",
-                        message=(f"Level 1B completed."),
+                        message=(f"Level 2B completed."),
                         source=__name__,
                     )
                 )

@@ -420,7 +420,7 @@ def collect_instrument_specific_metadata(config_path: Path, acq_path: Path, chan
             )
         )
         order = 'UNK'
-    meta_data[f'ORDER'] = HeaderEntry(order, "Acquisition order 'LOW / HIGH'.")
+    meta_data[f'{channel}_ORDER'] = HeaderEntry(order, "Acquisition order 'LOW / HIGH'.")
     for i, task in enumerate(sp_expos_values):
         n = taskValues[i][0]
         num = f'{n:03d}' # e.g. 1 -> 001

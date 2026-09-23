@@ -97,7 +97,7 @@ def run_pipeline(config_path: Path | None) -> None:
                 if issue.level == 'warning' or issue.level == 'error':
                     issues.append(issue)
             cfg.run.input_dir = cfg.run.output_dir # Next level should use the output of this level
-            logger.info(f"Level 2 run finished for channel {channel}.")
+            logger.info(f"Level 2 run finished.")
         except PipelineError as e:
             logger.error(
                 f"Error running pipeline for channel %s. continuing. %s",

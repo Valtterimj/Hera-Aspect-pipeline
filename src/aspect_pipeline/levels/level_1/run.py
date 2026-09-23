@@ -15,10 +15,10 @@ def run_level_1(cfg: Config, channel: str) -> tuple[Path, list[Issue]]:
 
     levels = cfg.pipeline.levels
     levels_to_run = parse_levels_to_run(levels=levels)
-
+    output_dir = cfg.run.output_dir
+    
     if '1A' in levels_to_run: 
         fits_path = _get_path(input_dir=cfg.run.input_dir, channel=channel, suffix='0A.fits')
-        output_dir = cfg.run.output_dir
         fits_path, issues = calibrate_header(fits_path=fits_path, output_dir=output_dir, channel=channel, drop_frame=cfg.calib.drop_frame)
         all_issues.extend(issues)
         all_issues.append(

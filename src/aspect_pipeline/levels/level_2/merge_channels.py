@@ -37,62 +37,66 @@ from aspect_pipeline.levels.level_2.transformation_matrix import estimate_matrix
 
 """
 
-def combine_primary_headers(headers: list[Header]) -> Header:
-    if not headers: 
+def combine_primary_headers(headers: list[Header]) -> tuple[Header, list[Issue]]:
+    if not headers:
         raise ValueError('No headers provided for combination')
-    if len(headers) == 1:
+
+    issues: list[Issue] = []
+
+    channel_order = ['Vis', 'NIR1', 'NIR2', 'SWIR'] # Ensure the order remains in header
+    by_channel = {hdr.get('CHANNELS'): hdr for hdr in headers}
+    ordered_channels = [c for c in channel_order if c in by_channel]
+
+    if len(ordered_channels) == 1:
         print(f"[WARNING] Only one header to combine in level 2.")
-        return headers[0]
-    
-    combined_header = headers[0].copy()
+        return by_channel[ordered_channels[0]], issues
+
+    base_channel = ordered_channels[0]
+    combined_header = by_channel[base_channel].copy()
     combined_header['ORIGFILE'] = ('dc_X_exp_XXX.bin', 'Original file name.')
     combined_header['PROCLEVL'] = ('2B', 'Calibration level')
 
-    def copy_header_key(source: Header, target: Header, key: str, id: int):
+    def copy_header_key(source: Header, target: Header, key: str):
         if key in source:
             value = source[key]
             comment = source.comments[key]
             if key in target:
                 target[key] = (value, comment)
             else:
-                insert_idx = target.index(f'AS{id}_FPI_TEMP2')
-                target.insert(insert_idx, (f'HIERARCH {key}', value, comment), after=True)
+                target.append((f'HIERARCH {key}', value, comment))
         else:
-            channel = source.get('ASP_CHANNELS')
-            print(f"[INFO] Key '{key}' not found in source '{channel}' header; skipping.")
+            channel = source.get('CHANNELS')
+            issues.append(
+                    Issue(
+                        level="error",
+                        message=(f"Key '{key}' not found in source '{channel}' header; skipping."
+                                ),
+                        source=__name__,
+                    )
+                )
 
-    
     try:
-        channel_0 = combined_header.get('ASP_CHANNELS')
-        channels = [channel_0]
-        for hdr in headers[1:]:
-            channel = hdr.get('ASP_CHANNELS')
-            channels.append(channel)
-            channel_id = channel_to_id[channel]
-            task_number = int(hdr.get(f'AS{channel_id}_TASK_NUMBER'))
-            copy_header_key(hdr, combined_header, f'AS{channel_id}_CCDTEMP', channel_id)
-            copy_header_key(hdr, combined_header, f'AS{channel_id}_FPI_TEMP1', channel_id)
-            copy_header_key(hdr, combined_header, f'AS{channel_id}_FPI_TEMP2', channel_id)
-            for i in range(task_number - 1, -1, -1):
-                num = f'{i:03d}' # e.g. 1 -> 001
-                copy_header_key(hdr, combined_header, f'AS{channel_id}_WL_{num}', channel_id)
-            for i in range(task_number - 1, -1, -1):
-                num = f'{i:03d}' # e.g. 1 -> 001
-                copy_header_key(hdr, combined_header, f'AS{channel_id}_EXP_{num}', channel_id)
-            for i in range(task_number - 1, -1, -1):
-                num = f'{i:03d}' # e.g. 1 -> 001
-                copy_header_key(hdr, combined_header, f'AS{channel_id}_TASK_{num}', channel_id)
-            copy_header_key(hdr, combined_header, f'AS{channel_id}_TASK_NUMBER', channel_id)
-            copy_header_key(hdr, combined_header, f'AS{channel_id}_ORDER', channel_id)
-            copy_header_key(hdr, combined_header, f'AS{channel_id}_FRAMES', channel_id)
-        channel_order = ['Vis', 'NIR1', 'NIR2', 'SWIR'] # Ensure the order remains in header
-        channels_string = ','.join(sorted(channels, key=lambda x: channel_order.index(x)))
-        combined_header['ASP_CHANNELS'] = (channels_string, 'Instrument channels')
+        for channel in ordered_channels[1:]:
+            hdr = by_channel[channel]
+            copy_header_key(hdr, combined_header, f'{channel}_CCDTEMP')
+            copy_header_key(hdr, combined_header, f'{channel}_FPI_TEMP1')
+            copy_header_key(hdr, combined_header, f'{channel}_FPI_TEMP2')
+            copy_header_key(hdr, combined_header, f'{channel}_ORDER')
+            copy_header_key(hdr, combined_header, f'{channel}_FRAMES')
+            copy_header_key(hdr, combined_header, f'{channel}_TASK_NUMBER')
+            frames = hdr[f'{channel}_FRAMES'].split(',')
+            for num in frames:
+                copy_header_key(hdr, combined_header, f'{channel}_TASK_{num}')
+            for num in frames:
+                copy_header_key(hdr, combined_header, f'{channel}_EXP_{num}')
+            for num in frames:
+                copy_header_key(hdr, combined_header, f'{channel}_WL_{num}')
+        combined_header['CHANNELS'] = (','.join(ordered_channels), 'Instrument channels')
     except Exception as e:
         print(f"[WARNING] Combining headers failed: {e}")
         print(f'Returning the first header.')
         headers[0]
-    return combined_header
+    return combined_header, issues
 
 def append_header(hdu: ImageHDU, dict: dict[str, Any]) -> ImageHDU:
     header = hdu.header
@@ -145,7 +149,6 @@ def merge_fits_files(input_dir: str | Path, channels: list[str], output_dir: str
     cds_dict = {}
     swir_data = None
 
-    print('present:', present)
     for c , file in valid:
         try:
             with fits.open(file) as hdul:
@@ -171,7 +174,10 @@ def merge_fits_files(input_dir: str | Path, channels: list[str], output_dir: str
                     )
 
     # New header
-    new_primary_header = combine_primary_headers(primary_header_list)
+    new_primary_header, issues = combine_primary_headers(primary_header_list)
+    for issue in issues:
+            all_issues.append(issue)
+
     new_image_data = []
 
     if 'Vis' in present and present & {'NIR1', 'NIR2'}:

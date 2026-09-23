@@ -29,7 +29,7 @@ def calibrate_header(fits_path: Path, output_dir: Path, channel: str, drop_frame
         new_hdul = fits.HDUList([hdu.copy() for hdu in hdul])
         hdu = new_hdul[0]
         header = hdu.header
-        order = header.get('ORDER')
+        order = header.get(f'{channel}_ORDER')
             
         for ch in ['Vis', 'NIR1', 'NIR2', 'SWIR']:
             
