@@ -19,11 +19,12 @@
 run:
 
   # (Required) Path to input data. Relative to this config file or absolute.
-  input_dir: "../data/test"
-  #input_dir: "../outputs/test/test"
+  input_dir: "../data/darks/acqseq_107"
+  # input_dir: "../data/test"
+  # input_dir: "../outputs/test/test"
 
   # (Optional) Root output directory for generated products. Absolute or empty. If left empty the files are saved to outputs/<missphase>.
-  output_dir: "../outputs/test"
+  output_dir: "../outputs/"
 
   # (Optional) SPICE meta kernel path. Should be absolute. Optional only from the pipeline perspective.
   # spice_dir: "/Users/valtterimj/Downloads/Work/Aalto/Hera/hera_spice/kernels/mk/hera_plan.tm"
@@ -53,7 +54,7 @@ calibration:
   solar_ssi: "../calibration/SOLAR/ssi_yearly_avg_e2024_c20250221.csv"
 
   # Drop first frame 
-  drop_first_frame: True
+  drop_first_frame: False
 
 
 # --------------------------------------------------------
@@ -72,7 +73,7 @@ data:
   swcreate: "ASPECTCAL"
 
   # Mission phase ID
-  missphas: "test"
+  missphas: "darks"
 
   # Mission observation ID
   observ: "pipeline-testing"
@@ -99,12 +100,12 @@ pipeline:
   # List of pipeline levels to execute.
   # Values: "0", "1", "1A", "1B", "1C", "2B", "3", "3A", "3B", "3C"
   # E.g. ["0","1"]
-  levels: ["0", "1", "2"]
+  levels: ["0"]
 
   # List of channels included in processin
   # Values: "Vis", "NIR1", "NIR2", "SWIR"
   # E.g. ["NIR1", "NIR2"]
-  channels: ["NIR1", "NIR2"]
+  channels: ["Vis"]
 
 
 # --------------------------------------------------------
@@ -115,7 +116,7 @@ pds4:
 
   # (required fpr pds4) relative to this file or absolute
   # The directory or file that contains the file(s) that the label is generated for
-  input: "../outputs/000_test2"
+  input: "../outputs/simulated"
 
   # (Required for pds4) Path to directory containing the templates. Relative to this config file or absolute.
   templates_dir: "../pds4_templates"
@@ -128,8 +129,8 @@ pds4:
   # Setting input to point to a directory and listing here the processing levels allows to generate multiple pds4 labels.
   # Values: "0", "1", "1A", "1B", "1C", "2B", "3", "3A", "3B", "3C"
   # E.g. ["0","1"]
-  products: ["0", "1"]
+  products: ["0"]
 
   # (optional) A list of channels that the products are generated for
   # Values: "Vis", "NIR1", "NIR2", "SWIR"
-  channels: ["NIR1", "NIR2"]
+  channels: ["Vis"]

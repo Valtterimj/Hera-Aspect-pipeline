@@ -15,11 +15,14 @@ logger = logging.getLogger(__name__)
 
 kelvin: float = 273.15
 
+CHANNELS = ['Vis', 'NIR1', 'NIR2', 'SWIR']
+
 channel_to_id = {
     "Vis"  : 0,
     "NIR1" : 1,
     "NIR2" : 2,
     "SWIR" : 3,
+    "all"  : 'P'
 }
 
 id_to_channel = {
@@ -119,8 +122,8 @@ def decompress_jp2(input_path: str | Path, output_dir: str | Path) -> Path:
     output_path = Path(output_dir) / output_filename 
 
     # Resolve absolute path to decompress binary (relative to this script's location)
-    project_root = Path(__file__).resolve().parents[4]
-    level0_dir = project_root / "src" / "nirmir_pipeline" / "pipeline" /  "levels" / "level_0"
+    project_root = Path(__file__).resolve().parents[3]
+    level0_dir = project_root / "src" / "aspect_pipeline"/ "levels" / "level_0"
 
     decompress_path = level0_dir / "decompress"
 
@@ -251,27 +254,29 @@ def normalize_to_8bit(img: np.ndarray) -> np.ndarray:
     # Convert to 8-bit integer
     return normalized.astype(np.uint8)
 
-def find_fits_files(directory: Path, levels: list[str], channel: list[str]) -> tuple[list[Path], list[str]]:
+def find_fits_files(directory: Path, levels: list[str], channels: list[str]) -> tuple[list[Path], list[str]]:
     """
     Search a directory for .fits files matching given level endings.
     """
-
-    all_fits = [ f for f in directory.iterdir() if f.suffix.lower() == ".fits"]
-
-    if len(channel) == 1:
-        (channel,) = channel
-        all_fits = [f for f in all_fits if f.stem.startswith(channel)]
-
     matched_files = []
     missing_files = []
 
     for level in levels:
-        matches = [f.name for f in all_fits if f.stem.endswith(level)]
-
-        if matches: 
-            matched_files.extend(matches)
-        else:
-            missing_files.extend(level)
+        suffix = f'{level}.fits'
+        if level in ['0A', '1A', '1B', '1C']:
+            for channel in channels:
+                p = get_path(directory, channel, suffix)
+                if p is None:
+                    missing_files.append(f'({level}, {channel})')
+                else:
+                    matched_files.append(p)
+        if level in ['2B', '3A', '3B', '3C']:
+            ch = 'all'
+            p = get_path(directory, ch, suffix)
+            if p is None:
+                missing_files.append(f'({level}, {channel})')
+            else:
+                matched_files.append(p)
     
     return matched_files, missing_files
 
@@ -403,7 +408,8 @@ def check_order(sp: float, channel: str) -> str:
 def get_path(input_dir: Path, channel: str,  suffix: str) -> Path | None:
     """
         Resolve to path to correct fits file inside the input_dir according to the lvl.
-        E.g. if lvl = 1B the input dir should contain a file ending to '*1A.fits'
+        E.g. if lvl = 1B the input dir should contain a file ending to '*1B.fits'
+        suffix should be then '1B.fits'
     """
     if not input_dir.exists() or not input_dir.is_dir():
         raise ValueError(f"Not a valid input directory found.")

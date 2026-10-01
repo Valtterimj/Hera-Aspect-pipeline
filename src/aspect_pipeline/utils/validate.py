@@ -198,7 +198,7 @@ def _get_path(input_dir: Path, channel: str,  suffix: str) -> Path:
     if not input_dir.exists() or not input_dir.is_dir():
         raise ValidationError(f"Not a valid input directory found.")
     
-    matches = list(input_dir.glob(f"*{suffix}"))
+    matches = list(input_dir.glob(f"*{suffix}", case_sensitive=False))
     channel_id = f'AS{channel_to_id[channel]}'
     matches = [p for p in matches if p.name.startswith(channel_id)]
 

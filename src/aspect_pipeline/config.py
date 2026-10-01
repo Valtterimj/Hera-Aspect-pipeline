@@ -139,7 +139,7 @@ def _parse_config_dict(raw: dict[str, Any], *, config_path: Path) -> Config:
             observ=_require_str(data_raw, "observ"),
             object=_require_str(data_raw, "object"),
             target=_require_str(data_raw, "target"),
-            solar_d=_resolve_str(cal_raw, "solar_distance"),
+            solar_d=_resolve_str(data_raw, "solar_d"),
         )
 
         levels = _require_list_of_str(pipeline_raw, "levels")
@@ -171,12 +171,15 @@ def _parse_pds4_config_dict(raw: dict[str, Any], *, config_path: Path) -> pds4_c
     channels = _require_list_of_str(pds4_raw, "channels")
     _validate_channels(channels)
 
-    pds4_cfg = pds4_config(
-        input =  _validate_path(_resolve_path(_require_str(pds4_raw, "input"), base_dir), kind=None),
-        templates_dir= _validate_path(_resolve_path(_require_str(pds4_raw, "templates_dir"), base_dir), kind='dir'),
-        output = _resolve_optional_path(pds4_raw.get("output", ""), base_dir),
-        products = levels,
-        channels = channels
-    )
+    try:
+        pds4_cfg = pds4_config(
+            input =  _validate_path(_resolve_path(_require_str(pds4_raw, "input"), base_dir), kind=None),
+            templates_dir= _validate_path(_resolve_path(_require_str(pds4_raw, "templates_dir"), base_dir), kind='dir'),
+            output = _resolve_optional_path(pds4_raw.get("output", ""), base_dir),
+            products = levels,
+            channels = channels
+        )
+    except ValidationError as e:
+        raise ConfigError(f'Creating pds4 config failed: {e}')
 
     return pds4_cfg

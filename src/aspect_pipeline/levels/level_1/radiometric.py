@@ -79,6 +79,7 @@ def radiometric_calibration(hdul: HDUList, radiance_file: Path) -> HDUList:
     header = hdu.header
     data = hdu.data
     channel = header.get('CHANNELS')
+    missphase = header.get('MISSPHAS')
 
     try: 
 
@@ -115,6 +116,16 @@ def radiometric_calibration(hdul: HDUList, radiance_file: Path) -> HDUList:
             interp_vals = interp_values(df, float(wl))
             response = float(interp_vals.get('response_dn_per_w'))
             coefficient = float(exposure) * response
+
+            # For simulated and test data use different formula
+            if missphase in ('test', 'simulated'):
+                dist_sun = 1
+                if channel == 'Vis':
+                    int_time = 10
+                else:
+                    int_time = 20
+                coefficient = (1 / response) * (int_time * dist_sun**2)
+                image /= 0.16
 
             new_data_cube[i] = image / coefficient
         

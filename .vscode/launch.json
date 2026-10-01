@@ -10,6 +10,16 @@
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",
             "justMyCode": false
+        },
+        {
+            "name": "aspect pds4",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "aspect_pipeline.cli",
+            "args": ["pds4", "--config", "configs/example.yaml"],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "justMyCode": false
         }
     ]
 }

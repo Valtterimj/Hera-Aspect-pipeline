@@ -5,7 +5,7 @@ from pathlib import Path
 from datetime import datetime
 
 from aspect_pipeline.utils.classes import InputLayout, Metadata, AcqMetadata, SpiceMetadata, InstrumentMetadata, InstrumentSpecificMetadata, DataConfig, Issue, HeaderEntry
-from aspect_pipeline.utils.utilities import channel_to_id, get_current_utc_time_str, list_channel_frames, extract_frames, check_order
+from aspect_pipeline.utils.utilities import CHANNELS, channel_to_id, get_current_utc_time_str, list_channel_frames, extract_frames, check_order
 from aspect_pipeline.utils.validate import _validate_float_string
 from aspect_pipeline.utils.errors import PipelineError
 import aspect_pipeline.levels.level_0.spice as spice
@@ -228,7 +228,7 @@ def collect_instrument_metadata(telemetry_path: Path, channel: str) -> tuple[Ins
     meta_data = {}
     meta_data['CHANNELS'] = HeaderEntry(channel, 'Channels')
 
-    channels = list(channel_to_id.keys())
+    channels = CHANNELS
 
     # Load telemetry file
     try:

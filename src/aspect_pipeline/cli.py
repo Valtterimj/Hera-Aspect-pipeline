@@ -5,7 +5,7 @@ from aspect_pipeline.utils.loggin_config import setup_logging
 from aspect_pipeline.utils.errors import PipelineError
 
 from aspect_pipeline.main import hello
-from aspect_pipeline.orchestrator import run_pipeline
+from aspect_pipeline.orchestrator import run_pipeline, run_generate_pds4
 from aspect_pipeline.utils.visualise import visualise_fits_file, visualise_bin_file
 from aspect_pipeline.utils.test_set import make_test_set
 
@@ -27,6 +27,13 @@ def main() -> None:
         "--config",
         default=None,
         help="Path to YAML configurations. If omitted, searches for configs/example.yaml"
+    )
+
+    pds4 = sub.add_parser("pds4", help="Generate PDS4 products")
+    pds4.add_argument(
+        "--config",
+        default=None,
+        help="Path to YAML config. If omitted, searches default options"
     )
 
 
@@ -65,6 +72,9 @@ def main() -> None:
         if args.cdm == "run":
             config_path = Path(args.config).expanduser() if args.config else None
             run_pipeline(config_path=config_path)
+        if args.cdm == "pds4":
+            config_path = Path(args.config).expanduser() if args.config else None
+            run_generate_pds4(config_path=config_path)
         if args.cdm == "test":
             hello()
         if args.cdm == "view":

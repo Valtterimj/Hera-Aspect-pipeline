@@ -5,11 +5,13 @@ from aspect_pipeline.config import load_config, load_pds4_config
 from aspect_pipeline.utils.classes import Issue
 from aspect_pipeline.utils.errors import PipelineError, ValidationError, ConfigError, format_exeption_chain
 from aspect_pipeline.utils.validate import _validate_output_dir
-from aspect_pipeline.utils.utilities import log_issue
+from aspect_pipeline.utils.utilities import log_issue, find_fits_files
 
 from aspect_pipeline.levels.level_0.run import run_level_0
 from aspect_pipeline.levels.level_1.run import run_level_1
 from aspect_pipeline.levels.level_2.run import run_level_2
+
+from aspect_pipeline.pds4.generate_pds4_label import generate_label
 
 
 logger = logging.getLogger(__name__)
@@ -107,3 +109,46 @@ def run_pipeline(config_path: Path | None) -> None:
 
     
     logger.info(f"Pipeline run correctly!")
+
+
+def run_generate_pds4(config_path: Path) -> None:
+    """
+    Main function to generate pds4 labels
+    """
+
+    logger.info("Staring pipeline function: run_generate_pds4")
+
+    try:
+        cfg = load_pds4_config(config_path=config_path)
+    except ConfigError as e: 
+        logger.error(f"[%s] Loading config failed: {e}", type(e).__name__)
+        raise
+
+    input = cfg.input
+    output = cfg.output
+    products = cfg.products
+    channels = cfg.channels
+    templates_dir = cfg.templates_dir
+    if not output or output.is_dir():
+            output = input / 'pds4'
+
+    if input.is_file():
+        logger.info(f"Generating PDS4 product for file: {input}")
+        try: 
+            generate_label(input, output)
+        except Exception as e:
+            raise PipelineError(f'Generating PDS4 label failed for file: {file} \nreason: {e}') 
+    
+    else:
+        logger.info(f"Generating PDS4 products for levels: {products}")
+        matches, missing = find_fits_files(input, products, channels)
+        if len(missing) > 0:
+            logger.warning(f"Missing fits files for the processing levels: {missing}.")
+        for file in matches:
+            path = input / file
+            try: 
+                generate_label(path, templates_dir, output)
+                logger.info(f"PDS4 product created for {file}. Saved to: {output}")
+            except Exception as e:
+                raise PipelineError(f'Generating PDS4 label failed for file: {file} \nreason: {e}') 
+        

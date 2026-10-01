@@ -33,7 +33,7 @@ def reflectance_calibration(
         output_dir: Path,
         solar_ssi: Path,
         fwhm_nm: float = 30.0,
-    ) -> Path:
+    ) -> tuple[Path, list[Issue]]:
     """
     The image is calibrated by pixel linear transformations. The pixels represent I/f reflectance units.
 
@@ -139,7 +139,6 @@ def reflectance_calibration(
     primary_header['FILENAME'] = file_name
     primary_header['PROCLEVL'] = new_calibration_level
     fits_file = output_dir / file_name
-    new_hdul.writeto(fits_file, overwrite=True)
     try:
         new_hdul.writeto(fits_file, overwrite=True)
         all_issues.append(
