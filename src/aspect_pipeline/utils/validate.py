@@ -30,6 +30,10 @@ def _resolve_str(d: dict[str, Any], key: str) -> str | None:
     else:
         return s.strip()
 
+def _require_any(d: dict[str, Any], key: str) -> Any:
+    s = d.get(key)
+    return s
+
 def _require_bool(d: dict[str, Any], key: str) -> bool:
     v = d.get(key)
     if not isinstance(v, bool):
@@ -89,6 +93,8 @@ def _expand_levels(levels: Sequence[str]) -> list[str]:
             expanded_levels.add("0A")
         elif  level == "1":
             expanded_levels.update(["1A", "1B", "1C"])
+        elif level == "3":
+            expanded_levels.update(["3A", "3B", "3C"])
     
     return [l for l in ALLOWED_LEVELS if l in expanded_levels]
 
