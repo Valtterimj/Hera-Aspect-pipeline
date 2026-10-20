@@ -2,6 +2,9 @@ import shutil
 
 from jinja2 import Environment, FileSystemLoader
 from pathlib import Path
+import hashlib
+from datetime import timezone, datetime
+
 
 from aspect_pipeline.pds4.fits_reader import read_fits_metadata
 from aspect_pipeline.utils.errors import PipelineError
@@ -12,6 +15,7 @@ def generate_label(fits_path: Path, templates_dir: Path, output_path: Path) -> N
     """
     Generate PDS4 label for a fits file and save it to the output path.
     """
+    print("asdawedwadaw")
     metadata = read_fits_metadata(fits_path)
 
     channel = metadata.get('channel')
@@ -19,16 +23,40 @@ def generate_label(fits_path: Path, templates_dir: Path, output_path: Path) -> N
     file_name = metadata.get('file_name')
     stem = file_name.split('.')[0]
     proclevl = metadata['proclevl']
+    version = "__1_0"
+    
+    if proclevl == '0A':
+        psa_level = 'raw'
+        m_lid_type = 'data_raw'
+    elif proclevl in ('1A', '1A-extra'):
+        psa_level = 'par'
+        m_lid_type = 'data_partially_processed'
+    else:  # 1B, 1C
+        psa_level = 'cal'
+        m_lid_type = 'data_calibrated'
 
-    metadata["start_date_time"] = convert_to_zulu_time(metadata['start_date_time'])
+    data_type = 'sc'  # Science data ('hk' for housekeeping)
+
+    parts = stem.lower().split('_')
+    instr = parts[0]
+    rest = "_".join(parts[1:])
+    product_id = f"{instr}_{psa_level}_{data_type}_{rest}"
+
+    metadata["start_date_time"] = convert_to_zulu_time(
+        metadata['start_date_time'])
     metadata["processing_level"] = convert_processing_levels(proclevl)
     metadata["reference_list"] = proclevl != '0A'
 
-    template = f"ASPECT_template.xml.j2"
+    template = f"New_ASPECT_template.j2"
 
     ### Identification Area ###
     title = f"Hera ASPECT instrument {channel} channel level {proclevl} processed datacube:{stem}"
     metadata["title"] = title
+
+    metadata["main_logical_lid"] = f"urn:esa:psa:hera:{m_lid_type}:{product_id}"
+
+    #mod history
+    metadata["modification_date"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     ### Observation Area ###
     wl_range = 'Visible'
@@ -39,31 +67,41 @@ def generate_label(fits_path: Path, templates_dir: Path, output_path: Path) -> N
     metadata['wl_range'] = wl_range
 
     ### Investigation Area ###
-    # lid_reference for comet interception 
-    #TODO: correct the right lid once comet interceptor dictionary is done.
-    mission_lid = "urn:nasa:pds:context:investigation:mission.hera"
+    # lid_reference for comet interception
+    mission_lid = "urn:esa:psa:mission.hera"
     metadata['mission_lid'] = mission_lid
 
+
     ### Observing System ###
-    #TODO: correct the right name and lids 
+    # TODO: correct the right name and lids
     observing_system_name = f'ASPECT_{channel}'
     metadata['os_name'] = observing_system_name
     # Host
-    aspect_lid = "urn:nasa:pds:contect:instrument_host.spacecraft.aspect"
+    aspect_lid = "urn:esa:psa:milani.aspect"
     metadata['aspect_lid'] = aspect_lid
     # Instrument
-    instrument_lid = f"urn:nasa:pds:contect:instrument:.aspect.{channel_lower}"
+    instrument_lid = f"urn:nasa:pds:context:instrument:aspect.{channel_lower}"
     metadata['instrument_lid'] = instrument_lid
+
+    # Target_Identification
+    target = "Didymos" if metadata.get('channel') == "didy" else "Dimorphos"
+    target_lid = "urn:nasa:pds:context:asteroid.65803_didymos" if metadata.get(
+        'channel') == "didy" else "urn:nasa:pds:context:satellite.65803_didymos.dimorphos"
+    metadata['target'] = target
+    metadata['target_lid'] = target_lid
+
+    # Mission_Area
+    # TODO: Mission_Area
 
     ### Image dictionary ###
     radiometric_type = 'Spectral Radiance'
-    if proclevl == '1C': 
+    if proclevl == '1C':
         radiometric_type = 'Radiance Factor'
     metadata['radiometric_type'] = radiometric_type
 
     ### Spectral Dictionary ###
     # The net integration time for FPI is the full observation interval
-    #TODO: figure how the 'full observation interval' is determined
+    # TODO: figure how the 'full observation interval' is determined
     net_integration_time = 1
     metadata['net_integration_time'] = net_integration_time
 
@@ -73,18 +111,36 @@ def generate_label(fits_path: Path, templates_dir: Path, output_path: Path) -> N
     metadata['sampling_interval'] = sampling_interval
     bin_width = 30
     metadata['bin_width'] = bin_width
-    
-    wavelengths = get_wavelengths(fits_file=fits_path)
-    if wavelengths != None:
-        first_center = wavelengths[0]
-        last_center = wavelengths[-1]
-        metadata['first_center'] = first_center
-        metadata['last_center'] = last_center
 
-    
+    wavelengths = get_wavelengths(fits_file=fits_path)
+    # if wavelengths != None:
+    #     first_center = wavelengths[0]
+    #     last_center = wavelengths[-1]
+    #     metadata['first_center'] = first_center
+    #     metadata['last_center'] = last_center
+
+    metadata['first_center'] = None
+    metadata['last_center'] = None
+    wavelengths = get_wavelengths(fits_file=fits_path)
+    if wavelengths is not None and len(wavelengths) > 0:
+        metadata['first_center'] = float(wavelengths[0])
+        metadata['last_center'] = float(wavelengths[-1])
+
     ### File Area ###
     # Map FITS logical dtype (after BZERO scaling) to PDS4 Element_Array data_type.
     # Byte size is inferred by the validator from FITS BITPIX, not the type name.
+
+    # File size
+    file_size = fits_path.stat().st_size
+
+    # MD5 checksum
+    with open(fits_path, 'rb') as f:
+        file_md5_checksum = hashlib.md5(f.read()).hexdigest()
+
+    # Add to metadata dictionary
+    metadata["file_size"] = file_size
+    metadata["file_md5_checksum"] = file_md5_checksum
+
     _dtype_to_pds4 = {
         'uint16':  'UnsignedMSB2',
         'uint32':  'UnsignedMSB4',
@@ -92,7 +148,8 @@ def generate_label(fits_path: Path, templates_dir: Path, output_path: Path) -> N
         'float32': 'IEEE754MSBSingle',
     }
     primary_dtype = metadata['extensions'][0]['data_dtype']
-    metadata['pds4_data_type'] = _dtype_to_pds4.get(primary_dtype, 'IEEE754MSBSingle')
+    metadata['pds4_data_type'] = _dtype_to_pds4.get(
+        primary_dtype, 'IEEE754MSBSingle')
 
     if proclevl in ('0A', '1A'):
         metadata['data_unit'] = 'DN'
@@ -102,17 +159,23 @@ def generate_label(fits_path: Path, templates_dir: Path, output_path: Path) -> N
         metadata['data_unit'] = '1'
 
     # local_identifier used for the primary data array; referenced in Discipline_Area
-    metadata['data_local_id'] = 'data_cube' if channel in ['Vis', 'NIR1', 'NIR2'] else 'data_spectrum'
+    metadata['data_local_id'] = 'data_cube' if channel in [
+        'Vis', 'NIR1', 'NIR2'] else 'data_spectrum'
     # sp:spectrum_format: 3D hyperspectral cube for Vis, NIR1, NIR2, 1D spectrum for SWIR
-    metadata['spectrum_format'] = '3D' if channel in ['Vis', 'NIR1', 'NIR2'] else '1D'
+    metadata['spectrum_format'] = '3D' if channel in [
+        'Vis', 'NIR1', 'NIR2'] else '1D'
 
     env = Environment(loader=FileSystemLoader(templates_dir))
     template = env.get_template(template)
     label_xml = template.render(**metadata)
-    
+
     product_dir = Path(output_path) / stem
     product_dir.mkdir(parents=True, exist_ok=True)
 
-    (product_dir / f"ASPECT_{stem}.xml").write_text(label_xml, encoding="utf-8")
+
+
+    (product_dir /
+     f"{product_id}{version}.lblx").write_text(label_xml, encoding="utf-8")
     shutil.copy2(fits_path, product_dir / fits_path.name)
-    return 
+    
+    return

@@ -211,7 +211,7 @@ If the dictionary versions are updated make sure the information version matches
                         {% if nir2_ccdtemp not in ['UNK', 'N/A']%}
                         <img:Device_Temperature>
                             <img:device_name>NIR2 CCDTEMP</img:device_name>
-                            <img:temperature_value unit="K">{{ ni2r_ccdtemp }}</img:temperature_value>
+                            <img:temperature_value unit="K">{{ nir2_ccdtemp }}</img:temperature_value>
                         </img:Device_Temperature>
                         {% endif %}
                         {% if swir_ccdtemp not in ['UNK', 'N/A']%}
@@ -259,7 +259,7 @@ If the dictionary versions are updated make sure the information version matches
                         {% if swir_fpi_temp1 not in ['UNK', 'N/A'] %}
                         <img:Device_Temperature>
                             <img:device_name>SWIR FPI TEMP1</img:device_name>
-                            <img:temperature_value unit="K">{{ SWIR_fpi_temp1 }}</img:temperature_value>
+                            <img:temperature_value unit="K">{{ swir_fpi_temp1 }}</img:temperature_value>
                         </img:Device_Temperature>
                         {% endif %}
                         {% if swir_fpi_temp2 not in ['UNK', 'N/A'] %}

@@ -19,7 +19,8 @@
 run:
 
   # (Required) Path to input data. Relative to this config file or absolute.
-  input_dir: "../data/darks/acqseq_107"
+  input_dir: "../data/simulated/didy-boulders-didysmoothed-5km"
+
   # input_dir: "../data/test"
   # input_dir: "../outputs/test/test"
 
@@ -73,16 +74,17 @@ data:
   swcreate: "ASPECTCAL"
 
   # Mission phase ID
-  missphas: "darks"
+  #simulated
+  missphas: "simulated"
 
   # Mission observation ID
   observ: "pipeline-testing"
 
   # Observed target
-  object: "dark"
+  object: "didy"
 
   # Observed target (SPICE)
-  target: "DARK"
+  target: "didy"
 
   # Solar distance
   # Manually set the solar distance, used in reflectance calibration.
@@ -100,12 +102,12 @@ pipeline:
   # List of pipeline levels to execute.
   # Values: "0", "1", "1A", "1B", "1C", "2B", "3", "3A", "3B", "3C"
   # E.g. ["0","1"]
-  levels: ["0"]
+  levels: ["0", "1"]
 
   # List of channels included in processin
   # Values: "Vis", "NIR1", "NIR2", "SWIR"
   # E.g. ["NIR1", "NIR2"]
-  channels: ["Vis"]
+  channels: ["Vis", "NIR1", "NIR2"]
 
 
 # --------------------------------------------------------
@@ -129,8 +131,8 @@ pds4:
   # Setting input to point to a directory and listing here the processing levels allows to generate multiple pds4 labels.
   # Values: "0", "1", "1A", "1B", "1C", "2B", "3", "3A", "3B", "3C"
   # E.g. ["0","1"]
-  products: ["0"]
+  products: ["0","1"]
 
   # (optional) A list of channels that the products are generated for
   # Values: "Vis", "NIR1", "NIR2", "SWIR"
-  channels: ["Vis"]
+  channels: ["Vis","NIR1","NIR2"]
