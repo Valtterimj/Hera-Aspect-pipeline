@@ -7,17 +7,28 @@ name = "hera-aspect-pipeline"
 version = "0.1.0"
 description = "The ASPECT data processing pipeline was developed to address the need for accurate calibration of instrument data, to integrate data from the four sensors, and to apply analysis algorithms to ASPECT's hyperspectral data cubes."
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.13"
 dependencies = [
     "astropy>=7.2.0",
+    "h5py>=3.16.0",
     "jinja2>=3.1.6",
+    "keras-tuner>=1.4.8",
     "matplotlib>=3.10.9",
-    "numpy>=2.4.6",
-    "opencv-python>=5.0.0.93",
+    "numpy>=1.26.4,<2",
+    "opencv-python>=4.11.0.86,<5",
+    "openpyxl>=3.1.5",
     "pandas>=3.0.3",
     "pyyaml>=6.0.3",
+    "scikit-learn>=1.9.1",
     "scipy>=1.17.1",
+    "seaborn>=0.13.2",
+    "shapely>=2.2.0",
     "spiceypy>=8.1.0",
+    "statsmodels>=0.15.0",
+    "tabulate>=0.10.0",
+    "tensorflow==2.16.2",
+    "tf-keras==2.16.0",
+    "tqdm>=4.70.1",
     "xarray>=2026.4.0",
 ]
 
