@@ -7,11 +7,11 @@ from aspect_pipeline.utils.classes import Issue, Config, CalibConfig
 from aspect_pipeline.utils.utilities import get_path, get_wavelengths, get_wavelengths_by_channel
 
 from aspect_pipeline.levels.level_3.modules.utilities_spectra import ( normalise_spectra, collect_all_models)
-from aspect_pipeline.levels.level_3.level_3_utilities import ( extract_asteroid, nir2_offset_correction, remove_outliers, denoise_spectra, validate_instrument, get_composition_header, get_taxonomy_header, remove_index_from_header)
+from aspect_pipeline.levels.level_3.level_3_utilities import ( extract_asteroid, nir2_offset_correction, remove_outliers, denoise_spectra, validate_instrument, get_composition_header, get_taxonomy_header)
 from aspect_pipeline.levels.level_3.modules.NN_evaluate import evaluate
-#from aspect_pipeline.levels.level_3.test_utilities import get_reflectances, plot_4_spectra, plot_spectra
+#from aspect_pipeline.levels.level_3.try_utilities import get_reflectances, plot_4_spectra, plot_spectra
 from aspect_pipeline.levels.level_3.mgm import fit, plot
-# from aspect_pipeline.levels.level_3.test_utilities import show_mgm_figures, visualise_composition
+# from aspect_pipeline.levels.level_3.try_utilities import show_mgm_figures, visualise_composition
 from aspect_pipeline.levels.level_3.modules.BAR_BC_method import calc_spect_params
 from aspect_pipeline.levels.level_3.modules.NN_config_taxonomy import classes
 from tqdm import tqdm
@@ -77,7 +77,6 @@ def run_level_3(cfg: Config):
     init_guess = cfg.analysis.init_guess
 
     save_filtered = False
-    levels = cfg.pipeline.levels
 
     with fits.open(fits_file) as hdul:
         primary_hdu = hdul[0]
@@ -109,7 +108,7 @@ def run_level_3(cfg: Config):
             norm_wl = 2348
             start_idx = 0
             end_idx = len(all_wl)
-            model_name = 'ASPECT-vis-nir1-nir2-swir-2348'
+            model_name = 'ASPECT-vis-nir1-nir2-swir-2366'
         case 'NIR1-NIR2': 
             norm_wl = 1546
             start_idx = int(np.where(all_wl == wavelengths['NIR1'][0])[0])
@@ -119,7 +118,7 @@ def run_level_3(cfg: Config):
             norm_wl = 2348
             start_idx = int(np.where(all_wl == wavelengths['NIR1'][0])[0])
             end_idx = len(all_wl)
-            model_name = 'ASPECT-nir1-nir2-swir-2348'
+            model_name = 'ASPECT-nir1-nir2-swir-2366'
 
     # Select the range based on instrument selection
     selected_wl = all_wl[start_idx:end_idx]
@@ -184,7 +183,7 @@ def run_level_3(cfg: Config):
     if save_filtered:
         print(f'Saving denoised spectra')
         hdr = primary_header.copy()
-        denoised_header = remove_index_from_header(hdr, first_nir2_idx)
+
         
         denoised_bands = denoised_spectras.shape[1]
         height, width = primary_data.shape[1:]
@@ -193,6 +192,7 @@ def run_level_3(cfg: Config):
             new_cube[:, y, x] = denoised_spectras[i]
         new_cube[:, excluded_coords[:, 0], excluded_coords[:, 1]] = np.nan
 
+        denoised_header = primary_header.copy()
         calibration_lvl = '3A'
         primary_header['PROCLEVL'] = calibration_lvl
         denoised_file_name = stem[:25] + calibration_lvl + suffix

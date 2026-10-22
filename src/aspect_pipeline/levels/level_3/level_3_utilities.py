@@ -233,47 +233,6 @@ def extract_asteroid(image_cube: np.ndarray, mask_index: int = 0, visualise: boo
 
     return combined
 
-def find_channel_and_local_index(I: int, channel_ids: List, frame_counts: Dict[str, int]):
-    cum = 0
-    for ch in channel_ids:
-        count = frame_counts[f'{ch}']
-        if I < cum + count:
-            return ch, I - cum
-            break
-        cum += count
-    raise ValueError(f'Index out of range')
-
-def remove_index_from_header(header: Header, index: int) -> Header:
-
-    print(f'removing information about frame index: {index}')
-    try: 
-        channels = header.get('CHANNELS').split(',')
-        total_frames = 0
-        frames_per_channel = {}
-        for ch in channels:
-            task_number = int(header.get(f'{ch}_TASK_NUMBER'))
-            total_frames += task_number
-            frames_per_channel[f'{ch}'] = task_number
-        
-        if index > total_frames:
-            raise ValueError(f'inndex must be smaller or equal to number of frames {index} <= {total_frames}')
-
-        channel_of_interest, local_index = find_channel_and_local_index(index, channel_ids=channels, frame_counts=frames_per_channel)
-        print(f'frame to be removed: channel {channel_of_interest}, index {local_index}')
-        num = f'{local_index:03d}'
-        val = header[f'AS{channel_of_interest}_TASK_NUMBER']
-        header[f'AS{channel_of_interest}_TASK_NUMBER'] = str(int(val)-1)
-        frames = header.get(f'AS{channel_of_interest}_FRAMES').split(',')
-        frames.remove(num)
-        header[f'AS{channel_of_interest}_FRAMES'] = ','.join(frames)
-        del header[f'AS{channel_of_interest}_TASK_{num}']
-        del header[f'AS{channel_of_interest}_EXP_{num}']
-        del header[f'AS{channel_of_interest}_WL_{num}']
-
-        return header
-    except Exception as e:
-        raise ValueError(f'Removing index {index} from header failed: {e}.')
-
 """
 Connecting segments
 """
