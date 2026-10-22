@@ -25,8 +25,12 @@ def run_level_1b(fits_file: Path, output_dir: Path, calibration: CalibConfig, ch
         all_issues.append(issue)
 
         # Extract diagnostic pixels from NIR. Convert the values to float64
-        hdul, issues = extract_cds_pixels(hdul)
-        all_issues.extend(issues)
+        
+        #Skip for simulated
+        missphas = hdul[0].header.get('MISSPHAS')
+        if missphas != 'simulated':
+            hdul, issues = extract_cds_pixels(hdul)
+            all_issues.extend(issues)
 
         calibration_dir = Path(calibration.calibration_dir)
         # Subtrack the dark frame from each image

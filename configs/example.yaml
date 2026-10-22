@@ -19,9 +19,8 @@
 run:
 
   # (Required) Path to input data. Relative to this config file or absolute.
-  input_dir: "../data/darks/acqseq_107"
-  # input_dir: "../data/test"
-  # input_dir: "../outputs/test/test"
+  input_dir: "../data/simulated/didy-boulders-didysmoothed-10km"
+  # input_dir: "../outputs/simulated"
 
   # (Optional) Root output directory for generated products. Absolute or empty. If left empty the files are saved to outputs/<missphase>.
   output_dir: "../outputs/"
@@ -47,7 +46,7 @@ calibration:
   # FLATS/ with relevant flat fields. Flat should be fits file with the frame is in the PrimaryHDU
   # BADPIXELS/ with relevant badpixels. Bad pixel list should be a txt file.
   # RADIANCE/ with relevant radiance. Radiance should be a txt file.
-  calibration_dir: "../calibration/TEST"
+  calibration_dir: "../calibration/SIMULATED"
 
   # Solar spectral irradiance. Relative to this config file or absolute.
   # Should be csv file
@@ -73,7 +72,7 @@ data:
   swcreate: "ASPECTCAL"
 
   # Mission phase ID
-  missphas: "darks"
+  missphas: "simulated"
 
   # Mission observation ID
   observ: "pipeline-testing"
@@ -100,13 +99,42 @@ pipeline:
   # List of pipeline levels to execute.
   # Values: "0", "1", "1A", "1B", "1C", "2B", "3", "3A", "3B", "3C"
   # E.g. ["0","1"]
-  levels: ["0"]
+  levels: ["0", "1", "2", "3"]
 
   # List of channels included in processin
   # Values: "Vis", "NIR1", "NIR2", "SWIR"
   # E.g. ["NIR1", "NIR2"]
-  channels: ["Vis"]
+  channels: ["Vis", "NIR1", "NIR2"]
 
+# --------------------------------------------------------
+# Level_3 analysis settings
+# These are only validated in level 3.
+# pipeline.levels field will determine which levels are run
+# --------------------------------------------------------
+analysis:
+
+  # Instrument for neural network analysis
+  # (str) -> valid inputs: 'Vis-NIR1-NIR2', 'Vis-NIR1-NIR2-SWIR', 'NIR1-NIR2', 'NIR1-NIR2-SWIR'
+  instrument: 'Vis-NIR1-NIR2'
+
+  # bool -> connecting NIR segments, removing outliers, and smoothing applied or not
+  data_filtering: True
+
+  # list[str] -> which analysis are applied C = Composition, T = Taxonomy, M = MGM
+  models: ['C']
+
+  # int -> What is the wavelength in nm where NIR1 and NIR2 overlap.
+  nir_overlap: 1225
+
+  # int -> threshold for removing outliers
+  # increase -> less sensitive to outliers ((deriv - mu) / sigma) > z_threshold)
+  z_thresh: 1.0
+
+  # increse -> smoother spectra (z_factor * fwhm)
+  z_factor: 1.0
+
+  # Initial guesses for MGM analysis 
+  init_guess: [[0.1, 950, 150], [0.01, 1250, 50]]
 
 # --------------------------------------------------------
 # PDS4 settings
@@ -116,7 +144,7 @@ pds4:
 
   # (required fpr pds4) relative to this file or absolute
   # The directory or file that contains the file(s) that the label is generated for
-  input: "../outputs/simulated"
+  input: "../outputs"
 
   # (Required for pds4) Path to directory containing the templates. Relative to this config file or absolute.
   templates_dir: "../pds4_templates"
