@@ -36,12 +36,23 @@ class PipelineConfig:
     channels: Sequence[Channel]
 
 @dataclass(frozen=True)
+class AnalysisConfig:
+    instrument: str
+    data_filtering: bool
+    models: list[str]
+    nir_overlap: int
+    z_thresh: int
+    z_factor: int
+    init_guess: list[tuple[float, float, float]]
+
+@dataclass(frozen=True)
 # The main config class
 class Config:
     run: RunConfig
     calib: CalibConfig
     data: DataConfig
     pipeline: PipelineConfig
+    analysis: AnalysisConfig
     config_path: Path
 
 @dataclass(frozen=True)

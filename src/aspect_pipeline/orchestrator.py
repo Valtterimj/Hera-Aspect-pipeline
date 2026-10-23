@@ -102,11 +102,23 @@ def run_pipeline(config_path: Path | None) -> None:
             logger.info(f"Level 2 run finished.")
         except PipelineError as e:
             logger.error(
-                f"Error running pipeline for channel %s. continuing. %s",
-                channel,
+                f"Error running pipeline level 2. continuing. %s",
                 format_exeption_chain(e)
             )
 
+
+    if any(x in levels for x in ["3A", "3B", "3C"]):
+        from aspect_pipeline.levels.level_3.run import run_level_3
+        try:
+            logger.info(f'Running level 3')
+
+            fits_file, all_issues = run_level_3(cfg=cfg)
+
+        except PipelineError as e:
+            logger.error(
+                f"Error running pipeline level 3. continuing. %s",
+                format_exeption_chain(e)
+            )
     
     logger.info(f"Pipeline run correctly!")
 

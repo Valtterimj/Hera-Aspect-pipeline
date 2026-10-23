@@ -338,21 +338,49 @@ def get_wavelengths(fits_file: Path) -> list[str] | None:
     try:
         with fits.open(fits_file) as hdul:
             header = hdul[0].header
-            channel = header.get('CHANNELS')
-            task_number = header.get(f'{channel}_TASK_NUMBER')
-            if task_number == None:
-                raise ValueError('No task number found.')
-            number = int(task_number)
+            channels = header.get('CHANNELS')
+            channel_list = channels.split(',')
             wavelengths = []
-            for i in range(number):
-                index = str(i).zfill(3)
-                wl = header.get(f'{channel}_WL_{index}', None)
-                if wl == None:
-                    continue
-                wavelengths.append(wl)
-            if len(wavelengths) == 0:
-                return None
+            for channel in channel_list:
+                task_number = header.get(f'{channel}_TASK_NUMBER')
+                if task_number == None:
+                    raise ValueError('No task number found.')
+                number = int(task_number)
+                for i in range(number):
+                    index = str(i).zfill(3)
+                    wl = header.get(f'{channel}_WL_{index}', None)
+                    if wl == None:
+                        continue
+                    wavelengths.append(wl)
+                if len(wavelengths) == 0:
+                    return None
             return wavelengths
+    except Exception:
+        return None
+
+def get_wavelengths_by_channel(fits_file: Path) -> dict[str, int]:
+    """Get all the wavelenghts of an acquisition from the fits header"""
+    try:
+        with fits.open(fits_file) as hdul:
+            header = hdul[0].header
+            channels = header.get('CHANNELS')
+            channel_list = channels.split(',')
+            all_wavelengths = {}
+
+            for channel in channel_list:
+                wavelengths = []
+                task_number = header.get(f'{channel}_TASK_NUMBER')
+                if task_number == None:
+                    raise ValueError('No task number found.')
+                number = int(task_number)
+                for i in range(number):
+                    index = str(i).zfill(3)
+                    wl = header.get(f'{channel}_WL_{index}', None)
+                    if wl == None:
+                        continue
+                    wavelengths.append(int(wl))
+                all_wavelengths[channel] = wavelengths
+            return all_wavelengths
     except Exception:
         return None
 
