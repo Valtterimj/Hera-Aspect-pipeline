@@ -21,6 +21,8 @@ def hello():
         print(cfg.data)
         print("pipeline:")
         print(cfg.pipeline)
+        print(f"analysis")
+        print(cfg.analysis)
         
     except PipelineError as e: 
         logger.error(f"[%s] Loading config failed.", type(e).__name__)

@@ -3,8 +3,8 @@ from typing import Any, Sequence
 
 import yaml
 
-from aspect_pipeline.utils.classes import Config, RunConfig, CalibConfig, DataConfig, PipelineConfig, pds4_config
-from aspect_pipeline.utils.validate import (Level, Channel, _require_mapping, _require_bool, _require_list_of_str, _require_str, 
+from aspect_pipeline.utils.classes import Config, RunConfig, CalibConfig, DataConfig, PipelineConfig, AnalysisConfig, pds4_config
+from aspect_pipeline.utils.validate import (Level, Channel, _require_mapping, _require_bool, _require_list_of_str, _require_str, _require_any,
                                                      _resolve_str, _resolve_path, _resolve_optional_path, _validate_path, _expand_levels, _validate_levels, _validate_channels)
 from aspect_pipeline.utils.errors import ConfigError, ValidationError
 
@@ -116,6 +116,7 @@ def _parse_config_dict(raw: dict[str, Any], *, config_path: Path) -> Config:
     cal_raw = _require_mapping(raw, 'calibration')
     data_raw = _require_mapping(raw, "data")
     pipeline_raw = _require_mapping(raw, "pipeline")
+    analysis_raw = _require_mapping(raw, "analysis")
 
     try:
         run = RunConfig(
@@ -142,6 +143,16 @@ def _parse_config_dict(raw: dict[str, Any], *, config_path: Path) -> Config:
             solar_d=_resolve_str(data_raw, "solar_d"),
         )
 
+        analysis = AnalysisConfig(
+            instrument=_require_any(analysis_raw, "instrument"),
+            data_filtering=_require_bool(analysis_raw, "data_filtering"),
+            models= _require_list_of_str(analysis_raw, "models"),
+            nir_overlap= _require_any(analysis_raw, "nir_overlap"),
+            z_thresh= _require_any(analysis_raw, "z_thresh"),
+            z_factor= _require_any(analysis_raw, "z_factor"),
+            init_guess= _require_any(analysis_raw, "init_guess")
+        )
+
         levels = _require_list_of_str(pipeline_raw, "levels")
         channels = _require_list_of_str(pipeline_raw, "channels")
 
@@ -156,7 +167,7 @@ def _parse_config_dict(raw: dict[str, Any], *, config_path: Path) -> Config:
         channels=tuple(channels),
     )
 
-    return Config(run=run, calib=calibration, data=data, pipeline=pipeline, config_path=config_path)
+    return Config(run=run, calib=calibration, data=data, pipeline=pipeline, analysis=analysis, config_path=config_path)
 
 
 def _parse_pds4_config_dict(raw: dict[str, Any], *, config_path: Path) -> pds4_config:
