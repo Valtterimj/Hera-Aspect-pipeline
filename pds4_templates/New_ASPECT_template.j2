@@ -173,7 +173,8 @@
                 </geom:Geometry_Orbiter>
             </geom:Geometry>
             {% endif %}
-
+            
+            {% if proclevl != '0A' %}
             <!-- Image dictionary-->
             <img:Imaging>
                 <pds:Local_Internal_Reference>
@@ -281,7 +282,10 @@
                     {% endif %}
                 </img:Instrument_State>
             </img:Imaging>
+            {% endif %}
 
+
+            {% if proclevl != '0A' %}
             <!-- Spectral dictionary-->
             <sp:Spectral_Characteristics>
                 <pds:Local_Internal_Reference>
@@ -336,6 +340,7 @@
                 </sp:Bin_Description>
 
             </sp:Spectral_Characteristics>
+            {% endif %}
         </Discipline_Area>
     </Observation_Area>
 
