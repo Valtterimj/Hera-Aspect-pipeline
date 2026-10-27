@@ -2,10 +2,10 @@ import logging
 from pathlib import Path
 
 from aspect_pipeline.config import load_config, load_pds4_config
-from aspect_pipeline.utils.classes import Issue
 from aspect_pipeline.utils.errors import PipelineError, ValidationError, ConfigError, format_exeption_chain
-from aspect_pipeline.utils.validate import _validate_output_dir
-from aspect_pipeline.utils.utilities import log_issue, find_fits_files
+from aspect_pipeline.utils.validate import validate_output_dir
+from aspect_pipeline.utils.utilities import find_fits_files
+from aspect_pipeline.utils.loggin_config import log_section, print_summary
 
 from aspect_pipeline.levels.level_0.run import run_level_0
 from aspect_pipeline.levels.level_1.run import run_level_1
@@ -23,8 +23,6 @@ def run_pipeline(config_path: Path | None) -> None:
 
     #TODO: adjust the calibration conversion values and test level 1 run for all channels.
 
-    issues: list[Issue] = []
-
     logger.info(f"Starting the main pipeline. Config file provided: {config_path}")
 
     try:
@@ -39,9 +37,12 @@ def run_pipeline(config_path: Path | None) -> None:
     logger.info(f"Configurations loaded from {cfg_path}")
 
     missphas = cfg.data.missphas
+    acq_id = cfg.data.acq_id
     output_dir = cfg.run.output_dir
+
+    # Resolve the output directory
     try:
-        output_path = _validate_output_dir(output_dir=output_dir, missphas=missphas)
+        output_path = validate_output_dir(output_dir=output_dir, acq_id=acq_id)
         cfg.run.output_dir = output_path
         logger.info(f"Output directory resolved: {output_path}")
     except ConfigError or ValidationError as e:
@@ -52,59 +53,45 @@ def run_pipeline(config_path: Path | None) -> None:
 
     if "0A" in levels:
         for channel in cfg.pipeline.channels:
-            try:
-                logger.info(f"Running level 0 for channel {channel}.")
-                fits_file, all_issues = run_level_0(cfg=cfg, channel=channel)
-                for issue in all_issues:
-                    log_issue(issue)
-                    if issue.level == 'warning' or issue.level == 'error':
-                        issues.append(issue)
-                logger.info(f"Level 0 run finished for channel {channel}.")
-            except PipelineError as e:
-                logger.error(
-                    f"Error running pipeline for channel %s. continuing. %s",
-                    channel,
-                    format_exeption_chain(e)
-                )
-                continue
+            with log_section(f"Level 0 · {channel}"):
+                try:
+                    fits_file = run_level_0(cfg=cfg, channel=channel)
+                except PipelineError as e:
+                    logger.error(
+                        f"Error running pipeline for channel %s. continuing. %s",
+                        channel,
+                        format_exeption_chain(e),
+                        exc_info=logger.isEnabledFor(logging.DEBUG),
+                    )
+                    continue
         cfg.run.input_dir = cfg.run.output_dir # Next level should use the output of this level
 
     if any(x in levels for x in ["1A", "1A-extra", "1B", "1C"]):
         for channel in cfg.pipeline.channels:
-            try:
-                logger.info(f"Running level 1 for channel {channel}.")
-                fits_file, all_issues = run_level_1(cfg=cfg, channel=channel)
-                for issue in all_issues:
-                    log_issue(issue)
-                    if issue.level == 'warning' or issue.level == 'error':
-                        issues.append(issue)
-                logger.info(f"Level 1 finished for channel {channel}.")  
-            except PipelineError as e:
-                logger.error(
-                    f"Error running pipeline for channel %s. Continuing. %s",
-                    channel, 
-                    format_exeption_chain(e)
-                    )
-                continue
+            with log_section(f"Level 1 · {channel}"):
+                try:
+                    fits_file = run_level_1(cfg=cfg, channel=channel)
+                except PipelineError as e:
+                    logger.error(
+                        f"Error running pipeline for channel %s. Continuing. %s",
+                        channel,
+                        format_exeption_chain(e),
+                        exc_info=logger.isEnabledFor(logging.DEBUG),
+                        )
+                    continue
         cfg.run.input_dir = cfg.run.output_dir # Next level should use the output of this level
 
     if '2' in levels:
-        try:
-            logger.info(f"Running level 2")
-
-            fits_file, all_issues = run_level_2(cfg=cfg)
-
-            for issue in all_issues:
-                log_issue(issue)
-                if issue.level == 'warning' or issue.level == 'error':
-                    issues.append(issue)
-            cfg.run.input_dir = cfg.run.output_dir # Next level should use the output of this level
-            logger.info(f"Level 2 run finished.")
-        except PipelineError as e:
-            logger.error(
-                f"Error running pipeline level 2. continuing. %s",
-                format_exeption_chain(e)
-            )
+        with log_section("Level 2"):
+            try:
+                fits_file = run_level_2(cfg=cfg)
+                cfg.run.input_dir = cfg.run.output_dir # Next level should use the output of this level
+            except PipelineError as e:
+                logger.error(
+                    f"Error running pipeline level 2. continuing. %s",
+                    format_exeption_chain(e),
+                    exc_info=logger.isEnabledFor(logging.DEBUG),
+                )
 
 
     if any(x in levels for x in ["3A", "3B", "3C"]):
@@ -121,6 +108,7 @@ def run_pipeline(config_path: Path | None) -> None:
             )
     
     logger.info(f"Pipeline run correctly!")
+    print_summary()
 
 
 def run_generate_pds4(config_path: Path) -> None:

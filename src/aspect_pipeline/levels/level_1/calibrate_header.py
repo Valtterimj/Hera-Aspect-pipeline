@@ -1,27 +1,27 @@
+import logging
 import numbers
 from pathlib import Path
 from astropy.io import fits
 
-from aspect_pipeline.utils.classes import Issue, Channel
 from aspect_pipeline.utils.errors import CalibrationError, PipelineError
 
-from aspect_pipeline.utils.utilities import form_fits_header_val
+from aspect_pipeline.utils.utilities import form_fits_header_val, generate_filename, parse_filename
 from aspect_pipeline.utils.calib_conversions import det_temp_conversion, fpi_temp_conversion, exposure_conversion, wavelength_conversion
 
+logger = logging.getLogger(__name__)
 
 
-def calibrate_header(fits_path: Path, output_dir: Path, channel: str, drop_frame: bool) -> tuple[str, list[Issue]]:
+def calibrate_header(fits_path: Path, output_dir: Path, channel: str, drop_frame: bool) -> Path:
     """
     Parmeters:
         fits_path: Path to the FITS file.
         output_path: Path to the folder where the new fits file will be stored.
-        channel: Instrument channel 'NIR' or 'MIR'
-    
-    Returns:
-        tuple (path to the created fits file, list of issues)
-    """
+        channel: Instrument channel
+        drop_frame: Drops the first frame of the acquisition
 
-    all_issues: list[Issue] = []
+    Returns:
+        path to the created fits file
+    """
 
     with fits.open(fits_path) as hdul:
 
@@ -48,14 +48,8 @@ def calibrate_header(fits_path: Path, output_dir: Path, channel: str, drop_frame
                 value, comment = form_fits_header_val(key=f'{ch}_CCDTEMP', value=val, comment=com, hierarch=True) # make header value comment pair
                 header[f'{ch}_CCDTEMP'] = (value, comment) # add to header
             except (ValueError, TypeError, CalibrationError) as e:
-                all_issues.append(
-                    Issue(
-                        level="warning",
-                        message=(
-                            f"Failed to compute detector temperature for {ch}_CCDTEMP; (reason: {type(e).__name__}: {e})"
-                        ),
-                        source=__name__,
-                    )
+                logger.warning(
+                    f"Failed to compute detector temperature for {ch}_CCDTEMP; (reason: {type(e).__name__}: {e})"
                 )
             
             # FPI temperature calibration for FPI 1 and FPI 2
@@ -74,14 +68,8 @@ def calibrate_header(fits_path: Path, output_dir: Path, channel: str, drop_frame
                     value, comment = form_fits_header_val(key=f'{ch}_FPI_TEMP{i}', value=val, comment=com, hierarch=True)
                     header[f'{ch}_FPI_TEMP{i}'] = (value, comment)
                 except (ValueError, TypeError, CalibrationError) as e:
-                    all_issues.append(
-                        Issue(
-                            level="warning",
-                            message=(
-                                f"Failed to compute FPI {i} temperature for {ch}_FPI_TEMP{i}; (reason: {type(e).__name__}: {e})"
-                            ),
-                            source=__name__,
-                        )
+                    logger.warning(
+                        f"Failed to compute FPI {i} temperature for {ch}_FPI_TEMP{i}; (reason: {type(e).__name__}: {e})"
                     )
 
         task_number = header.get(f'{channel}_TASK_NUMBER')
@@ -115,15 +103,9 @@ def calibrate_header(fits_path: Path, output_dir: Path, channel: str, drop_frame
                 task_idx += 1 # increase the counter 
 
         except (ValueError, TypeError, CalibrationError) as e:
-                all_issues.append(
-                    Issue(
-                        level="warning",
-                        message=(
-                            f"Failed to convert wavelengths for channel: {channel}; (reason: {type(e).__name__}: {e})"
-                        ),
-                        source=__name__,
-                    )
-                )  
+                logger.warning(
+                    f"Failed to convert wavelengths for channel: {channel}; (reason: {type(e).__name__}: {e})"
+                )
         
         try:
 
@@ -148,15 +130,9 @@ def calibrate_header(fits_path: Path, output_dir: Path, channel: str, drop_frame
                 task_idx += 1
 
         except (ValueError, TypeError, CalibrationError) as e:
-            all_issues.append(
-                    Issue(
-                        level="warning",
-                        message=(
-                            f"Failed to convert setpoint values to wavelengths for {channel}; (reason: {type(e).__name__}: {e})"
-                        ),
-                        source=__name__,
-                    )
-                )
+            logger.warning(
+                f"Failed to convert setpoint values to wavelengths for {channel}; (reason: {type(e).__name__}: {e})"
+            )
 
         # Drop the first frame from the data cube and its header entries
         if drop_frame:
@@ -170,36 +146,21 @@ def calibrate_header(fits_path: Path, output_dir: Path, channel: str, drop_frame
 
             hdu.data = hdu.data[1:]
 
-            all_issues.append(
-                Issue(
-                    level="info",
-                    message=(f"Dropped first frame ({dropped_frame}) from {channel} data cube and header."),
-                    source=__name__,
-                )
-            )
+            logger.info(f"Dropped first frame ({dropped_frame}) from {channel} data cube and header.")
 
         # Create new fits file name and write
-        stem = fits_path.stem
-        suffix = fits_path.suffix
-        new_calibration_level = '1A'
-        file_name = stem[:25] + new_calibration_level + suffix
-        primary_header = header
-        primary_header['FILENAME'] = file_name
-        primary_header['PROCLEVL'] = new_calibration_level
-        fits_file = output_dir / file_name
+        old_name = fits_path.name
+        old_name_atr = parse_filename(old_name)
+        old_name_atr.processing_level = '1A'
+        fits_name = generate_filename(old_name_atr)
+        fits_file = output_dir / fits_name
         new_hdul.writeto(fits_file, overwrite=True)
         try:
             new_hdul.writeto(fits_file, overwrite=True)
-            all_issues.append(
-                    Issue(
-                        level="info",
-                        message=(f"New fits file created: {fits_file}"),
-                        source=__name__,
-                    )
-                )
+            logger.info(f"New fits file created: {fits_file}")
         except Exception as e:
             raise PipelineError(f'Error writing a fits file.') from e
-        
-    return fits_file, all_issues
+
+    return fits_file
 
    

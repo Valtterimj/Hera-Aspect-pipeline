@@ -1,9 +1,12 @@
+import logging
 import numpy as np
 from pathlib import Path
 from astropy.io import fits
 from scipy.ndimage import gaussian_filter1d
 
-from aspect_pipeline.utils.classes import Issue
+from aspect_pipeline.utils.utilities import parse_filename, generate_filename
+
+logger = logging.getLogger(__name__)
 
 def load_ssi_csv(csv_path: Path) -> tuple[np.ndarray, np.ndarray]:
     """
@@ -33,7 +36,7 @@ def reflectance_calibration(
         output_dir: Path,
         solar_ssi: Path,
         fwhm_nm: float = 30.0,
-    ) -> tuple[Path, list[Issue]]:
+    ) -> Path:
     """
     The image is calibrated by pixel linear transformations. The pixels represent I/f reflectance units.
 
@@ -45,8 +48,6 @@ def reflectance_calibration(
     Returns: 
         Reflectance unit converted data inside the same hdul 
     """
-    all_issues: list[Issue] = []
-
     try:
         with fits.open(fits_path) as hdul:
             new_hdul = fits.HDUList([hdu.copy() for hdu in hdul])
@@ -62,35 +63,17 @@ def reflectance_calibration(
             for i, frame in enumerate(frames):
                 wl = primary_header.get(f'{channel}_WL_{frame}')
                 if wl == None:
-                    all_issues.append(
-                        Issue(
-                            level='warning',
-                            message=f"No wavelength data found for {channel} frame {frame}. Skipping the frame",
-                            source=__name__
-                        )
-                    )
+                    logger.warning(f"No wavelength data found for {channel} frame {frame}. Skipping the frame")
                 wavelengths.append(wl)
 
     except Exception as e:
-        all_issues.append(
-                Issue(
-                    level='error',
-                    message=f'Reflectance conversion failed.',
-                    source=__name__,
-                )
-            )
-        return fits_path, all_issues
+        logger.error(f'Reflectance conversion failed.')
+        return fits_path
 
-    try: 
-        
+    try:
+
         if sun_dist in (None, 'UNK', 'N/A'):
-            all_issues.append(
-                Issue(
-                    level='warning',
-                    message=f'Sun distance: {sun_dist}; Using default 1AU',
-                    source=__name__,
-                )
-            )
+            logger.warning(f'Sun distance: {sun_dist}; Using default 1AU')
             sun_dist = float(1)
         else:
             sun_dist = float(sun_dist)
@@ -115,47 +98,26 @@ def reflectance_calibration(
             data[i] = IF_frame
         primary_hdu.data = data
     except Exception as e:
-        all_issues.append(
-                Issue(
-                    level='error',
-                    message=f'Reflectance conversion failed: {e}',
-                    source=__name__,
-                )
-            )
-        return fits_path, all_issues
-    
-    all_issues.append(
-        Issue(
-            level='info',
-            message=f'Data converted to reflectance.',
-            source=__name__,
-        )
-    )
+        logger.error(f'Reflectance conversion failed: {e}')
+        return fits_path
+
+    logger.info(f'Data converted to reflectance.')
     # Create new fits file name and write
-    stem = fits_path.stem
-    suffix = fits_path.suffix
-    new_calibration_level = '1C'
-    file_name = stem[:25] + new_calibration_level + suffix
-    primary_header['FILENAME'] = file_name
-    primary_header['PROCLEVL'] = new_calibration_level
-    fits_file = output_dir / file_name
     try:
+        old_name = fits_path.name
+        old_name_atr = parse_filename(old_name)
+        old_name_atr.processing_level = '1C'
+        fits_name = generate_filename(old_name_atr)
+        primary_header = hdul[0].header
+        primary_header['FILENAME'] = fits_name
+        primary_header['PROCLEVL'] = '1C'
+        primary_header['FILENAME'] = fits_name
+        primary_header['PROCLEVL'] = '1C'
+        fits_file = output_dir / fits_name
         new_hdul.writeto(fits_file, overwrite=True)
-        all_issues.append(
-                Issue(
-                    level="info",
-                    message=(f"New fits file created: {fits_file}"),
-                    source=__name__,
-                )
-            )
-    except Exception:
-        all_issues.append(
-            Issue(
-                level="Error",
-                message=(f"Error writing fits dile"),
-                source=__name__,
-            )
-        )
-    
-    return fits_file, all_issues
+        logger.info(f"New fits file created: {fits_file}")
+    except Exception as e:
+        logger.error(f"Error writing fits file: {e}")
+
+    return fits_file
 
