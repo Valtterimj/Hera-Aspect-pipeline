@@ -1,4 +1,5 @@
 import os
+import logging
 import numpy as np
 import cv2
 from astropy.io import fits
@@ -10,10 +11,11 @@ from pathlib import Path
 from typing import Any
 
 
-from aspect_pipeline.utils.classes import Issue
 from aspect_pipeline.utils.utilities import get_path, get_frame, channel_to_id
 
 from aspect_pipeline.levels.level_2.transformation_matrix import estimate_matrix
+
+logger = logging.getLogger(__name__)
 
 """
     Function for aligning vis channel images with nir channel images 
@@ -37,19 +39,17 @@ from aspect_pipeline.levels.level_2.transformation_matrix import estimate_matrix
 
 """
 
-def combine_primary_headers(headers: list[Header]) -> tuple[Header, list[Issue]]:
+def combine_primary_headers(headers: list[Header]) -> Header:
     if not headers:
         raise ValueError('No headers provided for combination')
-
-    issues: list[Issue] = []
 
     channel_order = ['Vis', 'NIR1', 'NIR2', 'SWIR'] # Ensure the order remains in header
     by_channel = {hdr.get('CHANNELS'): hdr for hdr in headers}
     ordered_channels = [c for c in channel_order if c in by_channel]
 
     if len(ordered_channels) == 1:
-        print(f"[WARNING] Only one header to combine in level 2.")
-        return by_channel[ordered_channels[0]], issues
+        logger.warning(f"Only one header to combine in level 2.")
+        return by_channel[ordered_channels[0]]
 
     base_channel = ordered_channels[0]
     combined_header = by_channel[base_channel].copy()
@@ -66,14 +66,7 @@ def combine_primary_headers(headers: list[Header]) -> tuple[Header, list[Issue]]
                 target.append((f'HIERARCH {key}', value, comment))
         else:
             channel = source.get('CHANNELS')
-            issues.append(
-                    Issue(
-                        level="error",
-                        message=(f"Key '{key}' not found in source '{channel}' header; skipping."
-                                ),
-                        source=__name__,
-                    )
-                )
+            logger.error(f"Key '{key}' not found in source '{channel}' header; skipping.")
 
     try:
         for channel in ordered_channels[1:]:
@@ -93,10 +86,10 @@ def combine_primary_headers(headers: list[Header]) -> tuple[Header, list[Issue]]
                 copy_header_key(hdr, combined_header, f'{channel}_WL_{num}')
         combined_header['CHANNELS'] = (','.join(ordered_channels), 'Instrument channels')
     except Exception as e:
-        print(f"[WARNING] Combining headers failed: {e}")
-        print(f'Returning the first header.')
+        logger.warning(f"Combining headers failed: {e}")
+        logger.warning(f'Returning the first header.')
         headers[0]
-    return combined_header, issues
+    return combined_header
 
 def append_header(hdu: ImageHDU, dict: dict[str, Any]) -> ImageHDU:
     header = hdu.header
@@ -104,7 +97,7 @@ def append_header(hdu: ImageHDU, dict: dict[str, Any]) -> ImageHDU:
         header[key] = value
     return hdu
 
-def merge_fits_files(input_dir: str | Path, channels: list[str], output_dir: str | Path) -> tuple[str, list[Issue]]:
+def merge_fits_files(input_dir: str | Path, channels: list[str], output_dir: str | Path) -> str:
     """
         Combines the FITS files into one single files containing the hyperspectral data cube.
         If the files list contains Vis channel the Vis channel is aligned into same grid with the NIR channel images.
@@ -116,11 +109,8 @@ def merge_fits_files(input_dir: str | Path, channels: list[str], output_dir: str
     
         Returns 
             (str): path to the created FITS file
-            (list): list of Issue objects
 
     """
-
-    all_issues: list[Issue] = []
 
     channel_files = {
         'Vis'   : get_path(input_dir, 'Vis', '1C.fits') if 'Vis' in channels else None,
@@ -132,16 +122,10 @@ def merge_fits_files(input_dir: str | Path, channels: list[str], output_dir: str
     valid = [(name, p) for name, p in channel_files.items() if p is not None]
 
     if len(valid) <= 1:
-        all_issues.append(
-            Issue(
-                level="warning",
-                message=(f"A single channel cannot be combined."),
-                source=__name__,
-            )
-        )
+        logger.warning(f"A single channel cannot be combined.")
         #TODO: return still 2B or just the 1C?
         valid_n, valid_f = valid[0]
-        return valid_f, all_issues
+        return valid_f
 
     present = {name for name, _ in valid}
     primary_header_list = []
@@ -165,18 +149,10 @@ def merge_fits_files(input_dir: str | Path, channels: list[str], output_dir: str
                 else:
                     swir_data = primary_data
         except Exception as e:
-            all_issues.append(
-                        Issue(
-                            level="Error",
-                            message=(f"Error in reading channel data {c}: {e}"),
-                            source=__name__,
-                        )
-                    )
+            logger.error(f"Error in reading channel data {c}: {e}")
 
     # New header
-    new_primary_header, issues = combine_primary_headers(primary_header_list)
-    for issue in issues:
-            all_issues.append(issue)
+    new_primary_header = combine_primary_headers(primary_header_list)
 
     new_image_data = []
 
@@ -249,12 +225,6 @@ def merge_fits_files(input_dir: str | Path, channels: list[str], output_dir: str
     fits_file = os.path.join(output_dir, file_name)
     hdu_list.writeto(fits_file, overwrite=True)
 
-    all_issues.append(
-            Issue(
-                level="Info",
-                message=(f"Merged files {present}"),
-                source=__name__,
-            )
-        )
+    logger.info(f"Merged files {present}")
 
-    return(fits_file, all_issues)
+    return fits_file

@@ -25,9 +25,9 @@ class DataConfig:
     origin: str
     swcreate: str
     missphas: str
-    observ: str
-    object: str
-    target: str
+    acq_id: str
+    major_version: str
+    minor_version: str
     solar_d: str | None
 
 @dataclass(frozen=True)
@@ -83,15 +83,15 @@ class AcqMetadata:
     INSTRUME: HeaderEntry
     ORIGIN: HeaderEntry
     MISSPHAS: HeaderEntry
-    OSERV_ID: HeaderEntry
+    ACQ_ID: HeaderEntry
     FILENAME: HeaderEntry
     ORIGFILE: HeaderEntry
-    SWCREATE: HeaderEntry
     DATE: HeaderEntry
-    PROCLEVL: HeaderEntry
     DATE_OBS: HeaderEntry
-    SC_CLK: HeaderEntry
-    OBJECT: HeaderEntry
+    SWCREATE: HeaderEntry
+    PROCLEVL: HeaderEntry
+    COV_TARG: HeaderEntry
+    VIS_AVG: HeaderEntry
 
 @dataclass(frozen=False)
 class SpiceMetadata:
@@ -147,6 +147,19 @@ class Metadata:
     spice: SpiceMetadata
     instrument: InstrumentMetadata
     instrument_specific: InstrumentSpecificMetadata
+
+@dataclass()
+# <instrument_acronym>_<processing_level>_[type]_[subunit]_<descriptor>__<major_version>_<minor_version>.<extension>
+# each variable as class
+class Filename:
+    instrument_acronym: str
+    processing_level: str
+    type: str
+    subunit: str
+    descriptor: str
+    major_version: str
+    minor_version: str
+    extension: str
 
 @dataclass(frozen=True, slots=True)
 class Issue:

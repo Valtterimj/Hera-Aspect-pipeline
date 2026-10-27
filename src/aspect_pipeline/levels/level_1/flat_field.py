@@ -1,23 +1,22 @@
+import logging
 import numpy as np
 from astropy.io import fits
 from astropy.io.fits import HDUList
 from pathlib import Path
 
-from aspect_pipeline.utils.classes import Issue
+logger = logging.getLogger(__name__)
 
 
-def flat_field_calibration(hdul: HDUList, flat: Path) -> tuple[HDUList, list[Issue]]:
+def flat_field_calibration(hdul: HDUList, flat: Path) -> HDUList:
     """
     Applies flatfield correction to each 2D frame on the channel
-    
+
     Parmeters:
         hdul (HDUList): The HDU list of the FITS file that is modified
-    
+
     Returns:
         The modified HDU list of the FITS file
     """
-    all_issues: list[Issue] = []
-
     # Data from fits file
     hdu = hdul[0]
     header = hdu.header
@@ -25,21 +24,15 @@ def flat_field_calibration(hdul: HDUList, flat: Path) -> tuple[HDUList, list[Iss
     channel = header.get('CHANNELS') # Channel (Vis, NIR1, NIR2, SWIR)
 
     if channel == 'SWIR':
-            return hdul, all_issues
-    
-    try: 
+            return hdul
+
+    try:
         with fits.open(flat) as flat_hdul:
             flat_field = flat_hdul[0].data
     except Exception as e:
-        all_issues.append(
-                    Issue(
-                        level="error",
-                        message=(f"Caught Exception while reading flat field for channel {channel}: {e}"),
-                        source=__name__,
-                    )
-        )
-        return hdul, all_issues
-    
+        logger.error(f"Caught Exception while reading flat field for channel {channel}: {e}")
+        return hdul
+
     # Flat field correction
     try:
         # To store the calibrated datacube
@@ -47,22 +40,10 @@ def flat_field_calibration(hdul: HDUList, flat: Path) -> tuple[HDUList, list[Iss
 
         new_data_cube /= flat_field
         new_data_cube = np.nan_to_num(new_data_cube, nan=0.0)
-        
+
         hdul[0].data = new_data_cube
-        all_issues.append(
-                    Issue(
-                        level="info",
-                        message=(f"Flat field corrected for channel {channel}."),
-                        source=__name__,
-                    )
-        )
-        return hdul, all_issues
+        logger.info(f"Flat field corrected for channel {channel}.")
+        return hdul
     except Exception as e:
-        all_issues.append(
-                    Issue(
-                        level="warning",
-                        message=(f"Flat field correction failed for {channel}; (reason: {e})"),
-                        source=__name__,
-                    )
-        )
-        return hdul, all_issues
+        logger.warning(f"Flat field correction failed for {channel}; (reason: {e})")
+        return hdul

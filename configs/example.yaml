@@ -74,14 +74,12 @@ data:
   # Mission phase ID
   missphas: "simulated"
 
-  # Mission observation ID
-  observ: "pipeline-testing"
+  # Acquisition ID
+  acq_id: "0000"
 
-  # Observed target
-  object: "dark"
+  "major_version": "1"
 
-  # Observed target (SPICE)
-  target: "DARK"
+  "minor_version": "1"
 
   # Solar distance
   # Manually set the solar distance, used in reflectance calibration.
@@ -99,7 +97,7 @@ pipeline:
   # List of pipeline levels to execute.
   # Values: "0", "1", "1A", "1B", "1C", "2B", "3", "3A", "3B", "3C"
   # E.g. ["0","1"]
-  levels: ["0", "1", "2", "3"]
+  levels: ["0", "1A", "1B", "1C"]
 
   # List of channels included in processin
   # Values: "Vis", "NIR1", "NIR2", "SWIR"
@@ -157,7 +155,7 @@ pds4:
   # Setting input to point to a directory and listing here the processing levels allows to generate multiple pds4 labels.
   # Values: "0", "1", "1A", "1B", "1C", "2B", "3", "3A", "3B", "3C"
   # E.g. ["0","1"]
-  products: ["0"]
+  products: ["0", "1A"]
 
   # (optional) A list of channels that the products are generated for
   # Values: "Vis", "NIR1", "NIR2", "SWIR"

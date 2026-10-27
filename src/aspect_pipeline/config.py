@@ -4,8 +4,8 @@ from typing import Any, Sequence
 import yaml
 
 from aspect_pipeline.utils.classes import Config, RunConfig, CalibConfig, DataConfig, PipelineConfig, AnalysisConfig, pds4_config
-from aspect_pipeline.utils.validate import (Level, Channel, _require_mapping, _require_bool, _require_list_of_str, _require_str, _require_any,
-                                                     _resolve_str, _resolve_path, _resolve_optional_path, _validate_path, _expand_levels, _validate_levels, _validate_channels)
+from aspect_pipeline.utils.validate import (require_mapping, require_bool, require_list_of_str, require_str, require_any, resolve_str, resolve_path,
+                                            resolve_optional_path, validate_path, expand_levels, validate_levels, validate_channels)
 from aspect_pipeline.utils.errors import ConfigError, ValidationError
 
 DEFAULT_CANDIDATES = [
@@ -111,54 +111,55 @@ def _parse_config_dict(raw: dict[str, Any], *, config_path: Path) -> Config:
     :rtype: Config
     """
 
+    # All sections should be dictionaries
     base_dir = config_path.parent
-    run_raw = _require_mapping(raw, "run")
-    cal_raw = _require_mapping(raw, 'calibration')
-    data_raw = _require_mapping(raw, "data")
-    pipeline_raw = _require_mapping(raw, "pipeline")
-    analysis_raw = _require_mapping(raw, "analysis")
+    run_raw = require_mapping(raw, "run")
+    cal_raw = require_mapping(raw, 'calibration')
+    data_raw = require_mapping(raw, "data")
+    pipeline_raw = require_mapping(raw, "pipeline")
+    analysis_raw = require_mapping(raw, "analysis")
 
     try:
         run = RunConfig(
-            input_dir=_validate_path(_resolve_path(_require_str(run_raw, "input_dir"), base_dir), kind='dir'),
-            output_dir=_resolve_optional_path(run_raw.get("output_dir", ""), base_dir),
-            spice_dir=_resolve_optional_path(run_raw.get("spice_dir", ""), base_dir),
-            overwrite=_require_bool(run_raw, "overwrite"),
+            input_dir=validate_path(resolve_path(require_str(run_raw, "input_dir"), base_dir), kind='dir'),
+            output_dir=resolve_optional_path(run_raw.get("output_dir", ""), base_dir),
+            spice_dir=resolve_optional_path(run_raw.get("spice_dir", ""), base_dir),
+            overwrite=require_bool(run_raw, "overwrite"),
         )
 
         calibration = CalibConfig(
-            calibration_dir=_validate_path(_resolve_path(_require_str(cal_raw, "calibration_dir"), base_dir)),
-            solar_ssi=_validate_path(_resolve_path(_require_str(cal_raw, "solar_ssi"), base_dir)),
-            drop_frame=_require_bool(cal_raw, "drop_first_frame"),
+            calibration_dir=validate_path(resolve_path(require_str(cal_raw, "calibration_dir"), base_dir)),
+            solar_ssi=validate_path(resolve_path(require_str(cal_raw, "solar_ssi"), base_dir)),
+            drop_frame=require_bool(cal_raw, "drop_first_frame"),
         )
 
         data = DataConfig(
-            instrume=_require_str(data_raw, "instrume"),
-            origin=_require_str(data_raw, "origin"),
-            swcreate=_require_str(data_raw, "swcreate"),
-            missphas=_require_str(data_raw, "missphas"),
-            observ=_require_str(data_raw, "observ"),
-            object=_require_str(data_raw, "object"),
-            target=_require_str(data_raw, "target"),
-            solar_d=_resolve_str(data_raw, "solar_d"),
+            instrume=require_str(data_raw, "instrume"),
+            origin=require_str(data_raw, "origin"),
+            swcreate=require_str(data_raw, "swcreate"),
+            missphas=require_str(data_raw, "missphas"),
+            acq_id=require_str(data_raw, "acq_id"),
+            major_version=require_str(data_raw, "major_version"),
+            minor_version=require_str(data_raw, "minor_version"),
+            solar_d=resolve_str(data_raw, "solar_d"),
         )
 
         analysis = AnalysisConfig(
-            instrument=_require_any(analysis_raw, "instrument"),
-            data_filtering=_require_bool(analysis_raw, "data_filtering"),
-            models= _require_list_of_str(analysis_raw, "models"),
-            nir_overlap= _require_any(analysis_raw, "nir_overlap"),
-            z_thresh= _require_any(analysis_raw, "z_thresh"),
-            z_factor= _require_any(analysis_raw, "z_factor"),
-            init_guess= _require_any(analysis_raw, "init_guess")
+            instrument=require_any(analysis_raw, "instrument"),
+            data_filtering=require_bool(analysis_raw, "data_filtering"),
+            models= require_list_of_str(analysis_raw, "models"),
+            nir_overlap= require_any(analysis_raw, "nir_overlap"),
+            z_thresh= require_any(analysis_raw, "z_thresh"),
+            z_factor= require_any(analysis_raw, "z_factor"),
+            init_guess= require_any(analysis_raw, "init_guess")
         )
 
-        levels = _require_list_of_str(pipeline_raw, "levels")
-        channels = _require_list_of_str(pipeline_raw, "channels")
+        levels = require_list_of_str(pipeline_raw, "levels")
+        channels = require_list_of_str(pipeline_raw, "channels")
 
-        levels = _expand_levels(levels)
-        _validate_levels(levels)
-        _validate_channels(channels)
+        levels = expand_levels(levels)
+        validate_levels(levels)
+        validate_channels(channels)
     except ValidationError as e:
         raise ConfigError(f"Parsing config dictionary failed: {e}.")
 
@@ -173,20 +174,20 @@ def _parse_config_dict(raw: dict[str, Any], *, config_path: Path) -> Config:
 def _parse_pds4_config_dict(raw: dict[str, Any], *, config_path: Path) -> pds4_config:
 
     base_dir = config_path.parent
-    pds4_raw = _require_mapping(raw, "pds4")
+    pds4_raw = require_mapping(raw, "pds4")
 
-    levels = _require_list_of_str(pds4_raw, "products")
-    levels = _expand_levels(levels)
-    _validate_levels(levels)
+    levels = require_list_of_str(pds4_raw, "products")
+    levels = expand_levels(levels)
+    validate_levels(levels)
 
-    channels = _require_list_of_str(pds4_raw, "channels")
-    _validate_channels(channels)
+    channels = require_list_of_str(pds4_raw, "channels")
+    validate_channels(channels)
 
     try:
         pds4_cfg = pds4_config(
-            input =  _validate_path(_resolve_path(_require_str(pds4_raw, "input"), base_dir), kind=None),
-            templates_dir= _validate_path(_resolve_path(_require_str(pds4_raw, "templates_dir"), base_dir), kind='dir'),
-            output = _resolve_optional_path(pds4_raw.get("output", ""), base_dir),
+            input =  validate_path(resolve_path(require_str(pds4_raw, "input"), base_dir), kind=None),
+            templates_dir= validate_path(resolve_path(require_str(pds4_raw, "templates_dir"), base_dir), kind='dir'),
+            output = resolve_optional_path(pds4_raw.get("output", ""), base_dir),
             products = levels,
             channels = channels
         )
