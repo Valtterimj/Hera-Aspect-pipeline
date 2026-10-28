@@ -72,30 +72,40 @@ def reflectance_calibration(
 
     try:
 
-        if sun_dist in (None, 'UNK', 'N/A'):
-            logger.warning(f'Sun distance: {sun_dist}; Using default 1AU')
-            sun_dist = float(1)
+        if primary_header.get('MISSPHAS') == 'SIMULATED': # For simulated data
+            au = 1.0
+            lambertRadianceAt1au = 217.0
+            c = lambertRadianceAt1au / au**2
+
+            for i, frame in enumerate(data):
+                data[i] = frame / c
+
         else:
-            sun_dist = float(sun_dist)
-        
-        if channel == 'SWIR':
-            fwhm_nm = 40.0
-        
-        wl_nm, ssi_vals = load_ssi_csv(solar_ssi)
 
-        ssi_gaussian = gaussian_convolution(ssi_vals, wl_nm, fwhm_nm)   
-
-        for i, frame in enumerate(data):
-            wl = wavelengths[i]
-            if wl == None:
-                continue
+            if sun_dist in (None, 'UNK', 'N/A'):
+                logger.warning(f'Sun distance: {sun_dist}; Using default 1AU')
+                sun_dist = float(1)
             else:
-                wl = float(wl)
-            ssi_index = int(np.searchsorted(wl_nm, wl))
-            f_au = ssi_gaussian[ssi_index]
-            IF_frame = np.pi * frame * (sun_dist**2) / f_au
-        
-            data[i] = IF_frame
+                sun_dist = float(sun_dist)
+            
+            if channel == 'SWIR':
+                fwhm_nm = 40.0
+            
+            wl_nm, ssi_vals = load_ssi_csv(solar_ssi)
+
+            ssi_gaussian = gaussian_convolution(ssi_vals, wl_nm, fwhm_nm)   
+
+            for i, frame in enumerate(data):
+                wl = wavelengths[i]
+                if wl == None:
+                    continue
+                else:
+                    wl = float(wl)
+                ssi_index = int(np.interp(wl_nm, wl))
+                f_au = ssi_gaussian[ssi_index]
+                IF_frame = np.pi * frame * (sun_dist**2) / f_au
+            
+                data[i] = IF_frame
         primary_hdu.data = data
     except Exception as e:
         logger.error(f'Reflectance conversion failed: {e}')

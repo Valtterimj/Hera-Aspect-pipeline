@@ -3,15 +3,14 @@ import logging
 import numpy as np
 import cv2
 from astropy.io import fits
-from astropy.io.fits import Header, PrimaryHDU, ImageHDU, BinTableHDU, HDUList
+from astropy.io.fits import Header, ImageHDU
 from astropy.table import Table, hstack
-from pathlib import Path
-from typing import List
 from pathlib import Path
 from typing import Any
 
 
-from aspect_pipeline.utils.utilities import get_path, get_frame, channel_to_id
+from aspect_pipeline.utils.utilities import get_path, get_frame, parse_filename, generate_filename
+from aspect_pipeline.utils.errors import PipelineError
 
 from aspect_pipeline.levels.level_2.transformation_matrix import estimate_matrix
 
@@ -88,7 +87,7 @@ def combine_primary_headers(headers: list[Header]) -> Header:
     except Exception as e:
         logger.warning(f"Combining headers failed: {e}")
         logger.warning(f'Returning the first header.')
-        headers[0]
+        return headers[0]
     return combined_header
 
 def append_header(hdu: ImageHDU, dict: dict[str, Any]) -> ImageHDU:
@@ -113,19 +112,18 @@ def merge_fits_files(input_dir: str | Path, channels: list[str], output_dir: str
     """
 
     channel_files = {
-        'Vis'   : get_path(input_dir, 'Vis', '1C.fits') if 'Vis' in channels else None,
-        'NIR1'  : get_path(input_dir, 'NIR1', '1C.fits') if 'NIR1' in channels else None,
-        'NIR2'  : get_path(input_dir, 'NIR2', '1C.fits') if 'NIR2' in channels else None,
-        'SWIR'  : get_path(input_dir, 'SWIR', '1C.fits') if 'SWIR' in channels else None,
+        'Vis'   : get_path(input_dir, processing_level='1C', subunit='vis', extension='fits') if 'Vis' in channels else None,
+        'NIR1'  : get_path(input_dir, processing_level='1C', subunit='nir1', extension='fits') if 'NIR1' in channels else None,
+        'NIR2'  : get_path(input_dir, processing_level='1C', subunit='nir2', extension='fits') if 'NIR2' in channels else None,
+        'SWIR'  : get_path(input_dir, processing_level='1C', subunit='swir', extension='fits') if 'SWIR' in channels else None,
     }
 
     valid = [(name, p) for name, p in channel_files.items() if p is not None]
 
     if len(valid) <= 1:
-        logger.warning(f"A single channel cannot be combined.")
+        logger.error(f"A single channel cannot be combined.\nfiles: {channel_files}")
         #TODO: return still 2B or just the 1C?
-        valid_n, valid_f = valid[0]
-        return valid_f
+        raise PipelineError("Level 2 needs more than one channel")
 
     present = {name for name, _ in valid}
     primary_header_list = []
@@ -150,6 +148,7 @@ def merge_fits_files(input_dir: str | Path, channels: list[str], output_dir: str
                     swir_data = primary_data
         except Exception as e:
             logger.error(f"Error in reading channel data {c}: {e}")
+            raise PipelineError(f"Reading channel data failed: {e}", channel=c, level='2B', path=str(file)) from e
 
     # New header
     new_primary_header = combine_primary_headers(primary_header_list)
@@ -159,7 +158,7 @@ def merge_fits_files(input_dir: str | Path, channels: list[str], output_dir: str
     if 'Vis' in present and present & {'NIR1', 'NIR2'}:
 
         vis = get_frame(channel_files['Vis'], 0)
-        nir = get_frame(channel_files.get('NIR1', channel_files.get('NIR2')), 0)
+        nir = get_frame(channel_files['NIR1'] or channel_files['NIR2'], 0)
 
         transform_matrix = estimate_matrix(vis, nir, filter=True) # Use filter true
 
@@ -205,7 +204,7 @@ def merge_fits_files(input_dir: str | Path, channels: list[str], output_dir: str
         combined_table = fits.BinTableHDU(data=combined_table_astropy.as_array())
         new_hdul.append(combined_table)
     elif 'NIR1' in cds_dict:
-        combined_table = fits.BinTableHDU(data=cds_dict['NIR2'].as_array())
+        combined_table = fits.BinTableHDU(data=cds_dict['NIR1'].as_array())
         new_hdul.append(combined_table)
     elif 'NIR2' in cds_dict:
         combined_table = fits.BinTableHDU(data=cds_dict['NIR2'].as_array())
@@ -213,16 +212,14 @@ def merge_fits_files(input_dir: str | Path, channels: list[str], output_dir: str
     
     hdu_list = fits.HDUList(new_hdul)
     # File name for new fits
-    _, file_path = valid[0]
-    stem = file_path.stem
-    suffix = file_path.suffix
-    new_calibration_level = '2B'
-    file_name = 'ASP'+ stem[3:25] + new_calibration_level + suffix
-    primary_header = hdu_list[0].header
-    primary_header['FILENAME'] = file_name
-    primary_header['PROCLEVL'] = new_calibration_level
+    old_name_atr = parse_filename(valid[0][1])
+    old_name_atr.subunit = '_'.join(ch.lower() for ch, _ in valid)
+    old_name_atr.processing_level = '2B'
+    fits_name = generate_filename(old_name_atr)
+    new_primary_hdu.header['FILENAME'] = fits_name # PrimaryHDU holds a copy of new_primary_header
+
     # Create the new fits file with dark-subtracted images
-    fits_file = os.path.join(output_dir, file_name)
+    fits_file = os.path.join(output_dir, fits_name)
     hdu_list.writeto(fits_file, overwrite=True)
 
     logger.info(f"Merged files {present}")

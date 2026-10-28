@@ -106,7 +106,7 @@ def build_fits(input: InputLayout, cfg: Config, channel: str) -> Path:
             height = 1024
             width = 1024
         else:
-            if cfg.data.missphas == 'simulated':
+            if cfg.data.missphas == 'SIMULATED':
                 height = 512
                 width = 640
             else:

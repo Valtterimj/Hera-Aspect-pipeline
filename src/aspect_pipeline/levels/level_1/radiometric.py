@@ -106,16 +106,17 @@ def radiometric_calibration(hdul: HDUList, radiance_file: Path) -> HDUList:
             coefficient = float(exposure) * response
 
             # For simulated and test data use different formula
-            if missphase in ('test', 'simulated'):
+            if missphase in ('test', 'SIMULATED'):
                 dist_sun = 1
                 if channel == 'Vis':
                     int_time = 10
                 else:
                     int_time = 20
-                coefficient = (1 / response) * (int_time * dist_sun**2)
-                image /= 0.16
-
-            new_data_cube[i] = image / coefficient
+                # coefficient = (1 / response) * (int_time * dist_sun**2)
+                # image /= 0.16
+                new_data_cube[i] = ((image * coefficient / (int_time * dist_sun**2)) / 0.16).astype(np.float64)
+            else:
+                new_data_cube[i] = image / coefficient
         
         hdul[0].data = new_data_cube
         logger.info(f'{channel} radiometrically calibrated.')
