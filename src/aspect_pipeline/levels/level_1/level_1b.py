@@ -28,7 +28,7 @@ def run_level_1b(fits_file: Path, output_dir: Path, calibration: CalibConfig, ch
 
             #Skip for simulated
             missphas = hdul[0].header.get('MISSPHAS')
-            if missphas != 'simulated':
+            if missphas != 'SIMULATED':
                 hdul = extract_cds_pixels(hdul)
 
             calibration_dir = Path(calibration.calibration_dir)

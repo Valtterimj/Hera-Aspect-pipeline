@@ -71,8 +71,8 @@ data:
   # Software identification
   swcreate: "ASPECTCAL"
 
-  # Mission phase ID
-  missphas: "simulated"
+  # Mission phase ID, use SIMULATED for simulated data
+  missphas: "SIMULATED"
 
   # Acquisition ID
   acq_id: "0000"
@@ -95,9 +95,9 @@ data:
 pipeline:
 
   # List of pipeline levels to execute.
-  # Values: "0", "1", "1A", "1B", "1C", "2B", "3", "3A", "3B", "3C"
+  # Values: "0", "1", "1A", "1B", "1C", "2", "3", "3A", "3B", "3C"
   # E.g. ["0","1"]
-  levels: ["0", "1A", "1B", "1C"]
+  levels: ["0", "1A", "1B", "1C", "2"]
 
   # List of channels included in processin
   # Values: "Vis", "NIR1", "NIR2", "SWIR"
