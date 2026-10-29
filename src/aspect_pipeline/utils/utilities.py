@@ -322,15 +322,15 @@ def convert_processing_levels(level: str) -> str:
     """
     Converts pipeline processing levels to PDS4 format
     0A -> Raw
-    1A -> Partially Processed
-    1A-extra -> Partially Processed
-    1B -> Calibrated
+    1A -> raw
+    1B -> Partially Processed
     1C -> Calibrated
     """
     match level:
         case '0A' : return 'Raw'
-        case '1A' | '1A-extra': return 'Partially Processed'
-        case '1B' | '1C' : return 'Calibrated'
+        case '1A' | '1A-extra' : return 'Raw'
+        case '1B' : return 'Partially Processed'
+        case '1C' : return 'Calibrated'
         case _ : raise ValueError(f'Processing level should be in (0A, 1A, 1A-extra, 1B, 1C) got: {level}')
 
 def get_wavelengths(fits_file: Path) -> list[str] | None:
