@@ -15,7 +15,6 @@ def generate_label(fits_path: Path, templates_dir: Path, output_path: Path) -> N
     """
     Generate PDS4 label for a fits file and save it to the output path.
     """
-    print("asdawedwadaw")
     metadata = read_fits_metadata(fits_path)
 
     channel = metadata.get('channel')
@@ -24,30 +23,54 @@ def generate_label(fits_path: Path, templates_dir: Path, output_path: Path) -> N
     stem = file_name.split('.')[0]
     proclevl = metadata['proclevl']
     version = "__1_0"
-    
+
     if proclevl == '0A':
+        print(f'Skipping Level 0A file: {fits_path.name}')
+        return
+    
+    if proclevl in ('1A', '1A-extra'):
         psa_level = 'raw'
         m_lid_type = 'data_raw'
-    elif proclevl in ('1A', '1A-extra'):
+    elif proclevl =='1B':
         psa_level = 'par'
         m_lid_type = 'data_partially_processed'
-    else:  # 1B, 1C
+    elif proclevl == '1C':  #1C
         psa_level = 'cal'
         m_lid_type = 'data_calibrated'
+    else:
+        psa_level = 'der'
+        m_lid_type = 'data_derived'
+
+    if proclevl in ('1A', '1A-extra', '1B', '1C'):
+        template = f"ASPECT_template_1.j2"
+    elif proclevl in ('2B'):
+        template = f"ASPECT_template_2.j2"
+    elif proclevl in ('3C'):
+        template = f"ASPECT_template_3.j2"
+
+    print("PSA Level:", proclevl)
 
     data_type = 'sc'  # Science data ('hk' for housekeeping)
 
     parts = stem.lower().split('_')
-    instr = parts[0]
-    rest = "_".join(parts[1:])
-    product_id = f"{instr}_{psa_level}_{data_type}_{rest}"
+    #place holder since name is not updated
+    SUBUNIT_MAP = {
+        "as0": "vis",
+        "as1": "nir1",
+        "as2": "nir2",
+        "as3": "swir",
+    }
+
+    subunit = SUBUNIT_MAP.get(parts[0], "unknown")
+    
+    instr = "asp"
+    descriptor = "1110"
+    product_id = f"{instr}_{psa_level}_{data_type}_{subunit}_{descriptor}"
 
     metadata["start_date_time"] = convert_to_zulu_time(
         metadata['start_date_time'])
     metadata["processing_level"] = convert_processing_levels(proclevl)
     metadata["reference_list"] = proclevl != '0A'
-
-    template = f"New_ASPECT_template.j2"
 
     ### Identification Area ###
     title = f"Hera ASPECT instrument {channel} channel level {proclevl} processed datacube:{stem}"
@@ -107,24 +130,53 @@ def generate_label(fits_path: Path, templates_dir: Path, output_path: Path) -> N
 
     ### Spectral Characteristics ###
     # Bin description
-    sampling_interval = 30
-    metadata['sampling_interval'] = sampling_interval
+
+    #TODO: check if width differ
     bin_width = 30
     metadata['bin_width'] = bin_width
 
+    # TODO: check if interval is 30 not linear make it dynamic
     wavelengths = get_wavelengths(fits_file=fits_path)
-    # if wavelengths != None:
-    #     first_center = wavelengths[0]
-    #     last_center = wavelengths[-1]
-    #     metadata['first_center'] = first_center
-    #     metadata['last_center'] = last_center
+    is_linear = False
+    bands = []
 
-    metadata['first_center'] = None
-    metadata['last_center'] = None
-    wavelengths = get_wavelengths(fits_file=fits_path)
     if wavelengths is not None and len(wavelengths) > 0:
-        metadata['first_center'] = float(wavelengths[0])
-        metadata['last_center'] = float(wavelengths[-1])
+        wl_floats = [float(w) for w in wavelengths]
+        metadata['first_center'] = wl_floats[0]
+        metadata['last_center'] = wl_floats[-1]
+
+        # Pre-build band list in case sampling is non-linear
+        bands = [
+            {'center_wl': f'{w:.1f}', 'bin_width': f'{bin_width:.1f}'}
+            for w in wl_floats
+        ]
+
+        if len(wl_floats) > 1:
+            diffs = [
+                wl_floats[i + 1] - wl_floats[i] for i in range(len(wl_floats) - 1)
+            ]
+            first_diff = diffs[0]
+            if all(abs(d - first_diff) < 0.01 for d in diffs):
+                is_linear = True
+                metadata['sampling_interval'] = f'{first_diff:.1f}'
+            else:
+                is_linear = False
+                metadata['sampling_interval'] = None
+        else:
+            is_linear = False
+            metadata['sampling_interval'] = None
+    else:
+        metadata['first_center'] = None
+        metadata['last_center'] = None
+        metadata['sampling_interval'] = None
+
+    metadata['is_linear'] = is_linear
+    metadata['bands'] = bands
+
+    ##Reference_List
+    metadata['raw_to_source_id'] = f'urn:esa:psa:hera:data_raw:asp_raw_sc_{subunit}_{descriptor}::1.0'
+    metadata['partially_processe_to_source_id'] = f'urn:esa:psa:hera:data_partially_processed:asp_par_sc_{subunit}_{descriptor}::1.0'
+    metadata['calibrated_to_source_id'] = f'urn:esa:psa:hera:data_calibrated:asp_cal_sc_{subunit}_{descriptor}::1.0'
 
     ### File Area ###
     # Map FITS logical dtype (after BZERO scaling) to PDS4 Element_Array data_type.
