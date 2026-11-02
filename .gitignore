@@ -27,3 +27,5 @@ decompress.exe
 decompress.obj
 jasper.dll
 unistd.h
+fitschecker.py
+fitscheckerl.py
