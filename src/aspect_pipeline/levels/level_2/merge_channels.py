@@ -194,7 +194,7 @@ def merge_fits_files(input_dir: str | Path, channels: list[str], output_dir: str
 
     # Add data to the data cube
     if swir_data is not None:
-        swir_hdu = fits.ImageHDU(data=swir_data)
+        swir_hdu = fits.ImageHDU(data=swir_data, name='SWIR')
         new_hdul.append(swir_hdu)
     
     # Extract HDUs containing the binary tables

@@ -2,6 +2,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Sequence, Literal, Optional
 
+import numpy as np
+from astropy.io.fits import Header
+
 Level = Literal["0A", "1A", "1B", "1C","2", "2B", "3A", "3B", "3C"]
 Channel = Literal["Vis", "NIR1", "NIR2", "SWIR"]
 IssueLevel = Literal["info", "warning", "error"]
@@ -39,8 +42,8 @@ class PipelineConfig:
 class AnalysisConfig:
     instrument: str
     data_filtering: bool
+    save_filtered: bool
     models: list[str]
-    nir_overlap: int
     z_thresh: int
     z_factor: int
     init_guess: list[tuple[float, float, float]]
@@ -192,3 +195,41 @@ class BadRegion:
     row: int | None
     size_x: int
     size_y: int
+
+@dataclass
+class Level2Data:
+    """Contents of a level 2B file needed by level 3.
+
+    Attributes:
+        path: Path to the 2B FITS file.
+        header: Primary header of the 2B file.
+        cube: Vis/NIR reflectance cube (bands, y, x).
+        swir: SWIR reflectance spectrum (one value per wavelength), or None if the file has no SWIR.
+        wavelengths: Wavelengths in nm for each channel in the file.
+    """
+    path: Path
+    header: Header
+    cube: np.ndarray
+    swir: np.ndarray | None
+    wavelengths: dict[str, list[int]]
+
+@dataclass
+class PreparedSpectra:
+    """Per-pixel spectra of the asteroid used by the level 3 analysis.
+
+    Attributes:
+        coords: (y, x) pixel coordinates of the spectra, shape (n_pixels, 2).
+        excluded_coords: (y, x) coordinates of asteroid pixels left out of the analysis, shape (n_excluded, 2).
+        spectra: Reflectance spectra, shape (n_pixels, n_bands).
+        wavelengths: Wavelength in nm of each band, ascending, shape (n_bands,).
+        channel_bands: Band range of each channel in spectra and wavelengths.
+        frames: Frame index ('000', '001', ...) of each band of a channel, in band order.
+        image_shape: (height, width) of the original image in pixels.
+    """
+    coords: np.ndarray
+    excluded_coords: np.ndarray
+    spectra: np.ndarray
+    wavelengths: np.ndarray
+    channel_bands: dict[str, slice]
+    frames: dict[str, list[str]]
+    image_shape: tuple[int, int]

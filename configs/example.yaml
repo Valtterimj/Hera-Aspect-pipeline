@@ -118,11 +118,11 @@ analysis:
   # bool -> connecting NIR segments, removing outliers, and smoothing applied or not
   data_filtering: True
 
+  # Save the filtered spectra as a file
+  save_filtered: True
+
   # list[str] -> which analysis are applied C = Composition, T = Taxonomy, M = MGM
   models: ['C']
-
-  # int -> What is the wavelength in nm where NIR1 and NIR2 overlap.
-  nir_overlap: 1225
 
   # int -> threshold for removing outliers
   # increase -> less sensitive to outliers ((deriv - mu) / sigma) > z_threshold)

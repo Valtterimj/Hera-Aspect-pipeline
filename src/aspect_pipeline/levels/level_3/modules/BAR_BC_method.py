@@ -242,7 +242,6 @@ def calc_spect_params(wavelength: np.ndarray, reflectance: np.ndarray, visualise
                 # FWHM points for band width
                 left_below = np.min(np.where((wavelength < bic) & (continuum_subtracted <= half_level_cs))[0])
                 left_above = left_below - 1
-                print('check point 1')
                 left_x1 = wavelength[left_above]
                 left_x2 = wavelength[left_below]
                 left_y1 = continuum_subtracted[left_above]
@@ -251,30 +250,19 @@ def calc_spect_params(wavelength: np.ndarray, reflectance: np.ndarray, visualise
                 left_k = (half_level_cs - left_y1) / (left_y2 - left_y1)
 
                 left_wl = left_x1 + left_k * (left_x2 - left_x1)
-                print('checkpoint 2')
                 right_above = np.min(np.where((wavelength > bic) & (continuum_subtracted >= half_level_cs))[0])
-                
+
                 right_below = right_above - 1
-                print(f'right_below: {right_below}')
-                print(f'right_above: {right_above}')
-    
-                print(f'right_above: {right_above}')
+
                 right_x1 = wavelength[right_above]
-                print(right_x1)
                 right_x2 = wavelength[right_below]
-                print(right_x1)
-                print(right_x2)
                 right_y1 = continuum_subtracted[right_above]
                 right_y2 = continuum_subtracted[right_below]
-                print(right_y1)
-                print(right_y2)
-                print('check point 3')
                 right_k = (half_level_cs - right_y1) / (right_y2 - right_y1)
 
                 right_wl = right_x1 + right_k * (right_x2 - right_x1)
 
                 band_width = right_wl - left_wl
-                print('checkpoint 4')
                 if band_width < 0:
                     raise Exception
                 BIW[i] = band_width

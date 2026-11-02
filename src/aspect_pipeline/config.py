@@ -147,8 +147,8 @@ def _parse_config_dict(raw: dict[str, Any], *, config_path: Path) -> Config:
         analysis = AnalysisConfig(
             instrument=require_any(analysis_raw, "instrument"),
             data_filtering=require_bool(analysis_raw, "data_filtering"),
+            save_filtered=require_bool(analysis_raw, "save_filtered"),
             models= require_list_of_str(analysis_raw, "models"),
-            nir_overlap= require_any(analysis_raw, "nir_overlap"),
             z_thresh= require_any(analysis_raw, "z_thresh"),
             z_factor= require_any(analysis_raw, "z_factor"),
             init_guess= require_any(analysis_raw, "init_guess")
