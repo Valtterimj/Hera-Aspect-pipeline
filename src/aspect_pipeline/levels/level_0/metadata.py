@@ -4,15 +4,15 @@ import json
 from pathlib import Path
 from datetime import datetime
 
-from aspect_pipeline.utils.classes import InputLayout, Metadata, AcqMetadata, SpiceMetadata, InstrumentMetadata, InstrumentSpecificMetadata, DataConfig, Issue, HeaderEntry
-from aspect_pipeline.utils.utilities import CHANNELS, channel_to_id, get_current_utc_time_str, list_channel_frames, extract_frames, check_order
-from aspect_pipeline.utils.validate import _validate_float_string
+from aspect_pipeline.utils.classes import InputLayout, Metadata, AcqMetadata, SpiceMetadata, InstrumentMetadata, InstrumentSpecificMetadata, DataConfig, HeaderEntry
+from aspect_pipeline.utils.utilities import CHANNELS, get_current_utc_time_str, list_channel_frames, extract_frames, check_order
+from aspect_pipeline.utils.validate import validate_float_string
 from aspect_pipeline.utils.errors import PipelineError
 import aspect_pipeline.levels.level_0.spice as spice
 
 logger = logging.getLogger(__name__)
 
-def collect_metadata(input: InputLayout, spice: Path, cfg: DataConfig, channel: str) -> tuple[Metadata, list[Issue]]:
+def collect_metadata(input: InputLayout, spice: Path, cfg: DataConfig, channel: str) -> Metadata:
     """
     Collect all acquisition metadata, including spice data, acquisition, and isntrument related metadata. 
     
@@ -24,15 +24,12 @@ def collect_metadata(input: InputLayout, spice: Path, cfg: DataConfig, channel: 
     :type cfg: DataConfig
     :param channel: Acquisition channel
     :type channel: str
-    :return: Metadata object containing all relevant fields and list of issues happened during metadata collection.
-    :rtype: tuple[Metadata, list[Issue]]
+    :return: Metadata object containing all relevant fields.
+    :rtype: Metadata
     """
-    all_issues: list[Issue] = []
-
     tel_path = input.telemetry_json
     acq_dir = input.acquisition_dir
     conf_path = input.config_json
-    target = cfg.target
     solar_d = cfg.solar_d
 
     frame_number, list_of_frames = list_channel_frames(acq_dir=acq_dir, channel=channel)
@@ -41,15 +38,11 @@ def collect_metadata(input: InputLayout, spice: Path, cfg: DataConfig, channel: 
     else: 
         original_filename = list_of_frames[0]
 
-    acq_metadata, acq_issues = collect_config_metadata(telemetry_path=tel_path, data=cfg, orig_file=original_filename)
-    all_issues.extend(acq_issues)
-    utc_ob = acq_metadata.DATE_OBS # should use SC_CLK for more accurate?
-    spice_metadata, spice_issues = collect_spice_metadata(mk=spice, target=target, solar_d=solar_d, utc_ob=utc_ob)
-    all_issues.extend(spice_issues)
-    instrument_metadata, inst_issues = collect_instrument_metadata(telemetry_path=tel_path, channel=channel)
-    all_issues.extend(inst_issues)
-    instrument_specific_metadata, inst_spec_issues = collect_instrument_specific_metadata(config_path=conf_path, acq_path=acq_dir, channel=channel)
-    all_issues.extend(inst_spec_issues)
+    acq_metadata = collect_config_metadata(telemetry_path=tel_path,config_path=conf_path, data=cfg, orig_file=original_filename)
+    utc_ob = acq_metadata.DATE_OBS
+    spice_metadata = collect_spice_metadata(mk=spice, target='DIDYMOS', solar_d=solar_d, utc_ob=utc_ob)
+    instrument_metadata = collect_instrument_metadata(telemetry_path=tel_path, channel=channel)
+    instrument_specific_metadata = collect_instrument_specific_metadata(config_path=conf_path, acq_path=acq_dir, channel=channel)
 
     meta_data = Metadata(
                     acq=acq_metadata,
@@ -59,29 +52,21 @@ def collect_metadata(input: InputLayout, spice: Path, cfg: DataConfig, channel: 
 
                 )
     
-    return (meta_data, all_issues)
+    return meta_data
 
 
-def collect_spice_metadata(mk: Path, target: str, solar_d: str | None, utc_ob: str) -> tuple[SpiceMetadata, list[Issue]]:
+def collect_spice_metadata(mk: Path, target: str, solar_d: str | None, utc_ob: str) -> SpiceMetadata:
 
-    issues: list[Issue] = []
     meta_data = {}
 
-    solar_d = _validate_float_string(value=solar_d) # either a valid string or None
+    solar_d = validate_float_string(value=solar_d) # either a valid string or None
 
     mk = str(mk)
     try:
         spice.load_meta_kernel(mk) # Load the meta kernel
     except Exception as e:
-        issues.append(
-            Issue(
-                level="warning",
-                message=(f"Failed to load meta kernel {mk}; "
-                        f"Continuing with 'UNK defaults (reson: {type(e).__name__})"
-                        ),
-                source=__name__,
-
-            )
+        logger.warning(
+            f"Failed to load SPICE meta kernel: {mk}; "
         )
         if solar_d is None:
             solar_d = 'UNK'
@@ -111,7 +96,7 @@ def collect_spice_metadata(mk: Path, target: str, solar_d: str | None, utc_ob: s
         meta_data['CAM_NAZ'] = HeaderEntry('UNK', 'Camera axis north azimuth [deg]')
         meta_data['SOL_ELNG'] = HeaderEntry('UNK', 'Solar elongation')
 
-        return (meta_data, issues)
+        return meta_data
 
     et = spice.utc_2_et(utc_ob)
     milani_frame = 'MILANI_SPACECRAFT'
@@ -132,13 +117,7 @@ def collect_spice_metadata(mk: Path, target: str, solar_d: str | None, utc_ob: s
     if solar_d is not None:
         sun_distance_au = solar_d
         if sun_distance_au != 'UNK':
-            issues.append(
-                Issue(
-                    level='warning',
-                    message=f"A valid solar distance was found from SPICE kernel but overrided with solar_d configuration parameter.\n SPICE: {sun_distance_au}, used: {solar_d}.",
-                    source=__name__,
-                )
-            )
+            logger.warning(f"A valid solar distance was found from SPICE kernel but overrided with solar_d configuration parameter.\n SPICE: {sun_distance_au}, used: {solar_d}.")
     meta_data['SUN_POSX'] = HeaderEntry(sun_position[0], 'Sun position vector X [km]')
     meta_data['SUN_POSY'] = HeaderEntry(sun_position[1], 'Sun position vector Y [km]')
     meta_data['SUN_POSZ'] = HeaderEntry(sun_position[2], 'Sun position vector Z [km]')
@@ -181,14 +160,11 @@ def collect_spice_metadata(mk: Path, target: str, solar_d: str | None, utc_ob: s
     spice.unload_all_kernels() # Unload all kernels at the end
 
     spice_meta_data = SpiceMetadata(**meta_data)
-    return (spice_meta_data, issues)
+    return spice_meta_data
 
-def collect_config_metadata(telemetry_path: Path, data: DataConfig, orig_file: str) -> tuple[AcqMetadata, list[Issue]]:
-
-    # TODO: where and how the Spacecraft clock count to SC_CLK is read and saved?
+def collect_config_metadata(telemetry_path: Path, config_path: Path, data: DataConfig, orig_file: str) -> AcqMetadata:
 
 
-    issues: list[Issue] = []
     meta_data = {}
     try:
         telemetry_data = json.loads(telemetry_path.read_text(encoding='utf-8'))
@@ -196,35 +172,39 @@ def collect_config_metadata(telemetry_path: Path, data: DataConfig, orig_file: s
         dt = datetime.strptime(acq_date, "%a %b %d %H:%M:%S %Y")
         date_obs = dt.strftime("%Y-%m-%dT%H:%M:%S.000")
     except Exception as e:
-        issues.append(
-            Issue(
-                level="warning",
-                message=(f"Missing field in telemetry for 'ACQ_DATE';"
-                            f"Continuing with 'UNK' default (reson: {type(e).__name__})"
-                            ),
-                source=__name__,
-
-            )
+        logger.warning(
+            f"Missing field in telemetry for 'ACQ_DATE';"
+            f"Continuing with 'UNK' default (reson: {type(e).__name__})"
         )
         date_obs = 'UNK'
+    try:
+        config_data = json.loads(config_path.read_text(encoding='utf-8'))
+        coverage_target = config_data.get('coverage_target', None)
+        vis_avg = config_data.get('visNumAverage', None)
+    except Exception as e:
+        logger.warning(
+            f"Exception reading config.json (reson: {type(e).__name__})"
+        )
+        coverage_target = 'UNK'
+        vis_avg = 'UNK'
+
     meta_data['INSTRUME'] = HeaderEntry(data.instrume, 'Camera ID')
     meta_data['ORIGIN'] = HeaderEntry(data.origin, 'Mission imagin instrument')
     meta_data['MISSPHAS'] = HeaderEntry(data.missphas, 'Mission phase ID')
-    meta_data['OSERV_ID'] = HeaderEntry(data.observ, 'Observation ID')
+    meta_data['ACQ_ID'] = HeaderEntry(data.acq_id, 'Acquisition ID')
     meta_data['ORIGFILE'] = HeaderEntry(orig_file, 'Original filename')
     meta_data['SWCREATE'] = HeaderEntry(data.swcreate, 'Software identification')
     meta_data['DATE_OBS'] = HeaderEntry(date_obs, 'Observation time UTC')
-    meta_data['OBJECT'] = HeaderEntry(data.object, 'Observation target')
+    meta_data['COV_TARG'] = HeaderEntry(str(coverage_target), '0=default, 1=D1, 2=D2, 3=D1D2')
+    meta_data['VIS_AVG'] = HeaderEntry(str(vis_avg), 'Vis channel averages')
     meta_data['PROCLEVL'] = HeaderEntry('0A', 'Calibration level')
     meta_data['FILENAME'] = HeaderEntry('UNK', 'Filename')
     meta_data['DATE'] = HeaderEntry(get_current_utc_time_str(), 'File creation UTC')
-    meta_data['SC_CLK'] = HeaderEntry('UNK', 'Spacecraft clock')
     
-    return (AcqMetadata(**meta_data), issues)
+    return AcqMetadata(**meta_data)
 
-def collect_instrument_metadata(telemetry_path: Path, channel: str) -> tuple[InstrumentMetadata, list[Issue]]: 
+def collect_instrument_metadata(telemetry_path: Path, channel: str) -> InstrumentMetadata:
 
-    issues: list[Issue] = []
     meta_data = {}
     meta_data['CHANNELS'] = HeaderEntry(channel, 'Channels')
 
@@ -238,15 +218,9 @@ def collect_instrument_metadata(telemetry_path: Path, channel: str) -> tuple[Ins
             for channel in channels
         }
     except Exception as e:
-        issues.append(
-            Issue(
-                level="warning",
-                message=(f"Failed to read telemetry JSON: {telemetry_path}; "
-                         f"Continuing with UNK defaults (reson: {type(e).__name__})"
-                        ),
-                source=__name__,
-
-            )
+        logger.warning(
+            f"Failed to read telemetry JSON: {telemetry_path}; "
+            f"Continuing with UNK defaults (reson: {type(e).__name__})"
         )
         data = InstrumentMetadata(
             CHANNELS= HeaderEntry(channel, 'channels'),
@@ -263,7 +237,7 @@ def collect_instrument_metadata(telemetry_path: Path, channel: str) -> tuple[Ins
             SWIR_FPI_TEMP1= HeaderEntry('UNK', 'SWIR FPI 1 temperature [DN]'),
             SWIR_FPI_TEMP2= HeaderEntry('UNK', 'SWIR FPI 2 temperature [DN]'),
         )
-        return (data, issues)
+        return data
 
     for ch in channels:
         channel_specific_telemetry = channel_specific_telemetries[ch]
@@ -272,54 +246,35 @@ def collect_instrument_metadata(telemetry_path: Path, channel: str) -> tuple[Ins
             meta_data[f'{ch}_CCDTEMP'] = HeaderEntry(str(det_temp), f'{ch} detector temperature [DN]')
         except KeyError as e:
             print('issue happened')
-            issues.append(
-                Issue(
-                    level="warning",
-                    message=(f"Missing field in telemetry for {ch}_CCDTEMP; "
-                            f"Continuing with UNK defaults (reson: {type(e).__name__})"
-                            ),
-                    source=__name__,
-
-                )
+            logger.warning(
+                f"Missing field in telemetry for {ch}_CCDTEMP; "
+                f"Continuing with UNK defaults (reson: {type(e).__name__})"
             )
             meta_data[f'{ch}_CCDTEMP'] = HeaderEntry('UNK', f'{ch} detector temperature [DN]')
         try:
             fpi_temp1 = channel_specific_telemetry['FPI_TEMP1']
             meta_data[f'{ch}_FPI_TEMP1'] = HeaderEntry(str(fpi_temp1), f'{ch} FPI 1 temperature [DN]')
         except KeyError as e:
-            issues.append(
-                Issue(
-                    level="warning",
-                    message=(f"Missing field in telemetry for {ch}_FPI_TEMP1; "
-                            f"Continuing with UNK defaults (reson: {type(e).__name__})"
-                            ),
-                    source=__name__,
-
-                )
+            logger.warning(
+                f"Missing field in telemetry for {ch}_FPI_TEMP1; "
+                f"Continuing with UNK defaults (reson: {type(e).__name__})"
             )
             meta_data[f'{ch}_FPI_TEMP1'] = HeaderEntry('UNK', f'{channel} FPI 1 temperature [DN]')
         try:
             fpi_temp2 = channel_specific_telemetry['FPI_TEMP2']
             meta_data[f'{ch}_FPI_TEMP2'] = HeaderEntry(str(fpi_temp2), f'{channel} FPI 2 temperature [DN]')
         except KeyError as e:
-            issues.append(
-                Issue(
-                    level="warning",
-                    message=(f"Missing field in telemetry for {ch}_FPI_TEMP2; "
-                            f"Continuing with UNK defaults (reson: {type(e).__name__})"
-                            ),
-                    source=__name__,
-
-                )
+            logger.warning(
+                f"Missing field in telemetry for {ch}_FPI_TEMP2; "
+                f"Continuing with UNK defaults (reson: {type(e).__name__})"
             )
             meta_data[f'{ch}_FPI_TEMP2'] = HeaderEntry('UNK', f'{channel} FPI 2 temperature [DN]')
 
-    data = InstrumentMetadata(**meta_data)      
-    return (data, issues)
+    data = InstrumentMetadata(**meta_data)
+    return data
 
-def collect_instrument_specific_metadata(config_path: Path, acq_path: Path, channel: str) -> tuple[InstrumentSpecificMetadata, list[Issue]]:
+def collect_instrument_specific_metadata(config_path: Path, acq_path: Path, channel: str) -> InstrumentSpecificMetadata:
 
-    issues: list[Issue] = []
     meta_data = {}
 
     frame_count, list_of_frames = list_channel_frames(acq_dir=acq_path, channel=channel)
@@ -330,17 +285,11 @@ def collect_instrument_specific_metadata(config_path: Path, acq_path: Path, chan
     try: 
         config_data = json.loads(config_path.read_text(encoding='utf-8'))
     except Exception as e:
-        issues.append(
-                Issue(
-                    level="warning",
-                    message=(f"Failed to read config.json file;"
-                            f"Continuing without instrument specific metadata (reson: {type(e).__name__})"
-                            ),
-                    source=__name__,
-
-                )
-            )
-        return (InstrumentSpecificMetadata(fields=meta_data), issues)
+        logger.warning(
+            f"Failed to read config.json file;"
+            f"Continuing without instrument specific metadata (reson: {type(e).__name__})"
+        )
+        return InstrumentSpecificMetadata(fields=meta_data)
 
     #read SP values for each image
     try:
@@ -354,71 +303,38 @@ def collect_instrument_specific_metadata(config_path: Path, acq_path: Path, chan
             case 'SWIR':
                 taskFile = config_data['swirTaskFile']
     except KeyError as e:
-        issues.append(
-                Issue(
-                    level="warning",
-                    message=(f"Missing task file entry for channel '{channel}' in config.json'"
-                            f"Continuing without instrument specific metadata (reson: {type(e).__name__})"
-                            ),
-                    source=__name__,
-
-                )
-            )
-        return (InstrumentSpecificMetadata(fields=meta_data), issues)
+        logger.warning(
+            f"Missing task file entry for channel '{channel}' in config.json'"
+            f"Continuing without instrument specific metadata (reson: {type(e).__name__})"
+        )
+        return InstrumentSpecificMetadata(fields=meta_data)
     try:
         #Extract sp values from taskValues
         if len(taskFile) % 8 != 0:
-            issues.append(Issue(
-                level="warning",
-                message=f"{channel} taskFile length ({len(taskFile)}) is not divisible by 8. Header data for task values might be corrupted."
-            ))
+            logger.warning(f"{channel} taskFile length ({len(taskFile)}) is not divisible by 8. Header data for task values might be corrupted.")
         taskValues = [taskFile[i:i + 8] for i in range(0, len(taskFile), 8)]
         sp_expos_values = [task[1:5] for task in taskValues]
         task_number = len(taskValues)
         meta_data[f'{channel}_TASK_NUMBER'] = HeaderEntry(task_number, 'Number of tasks')
     except Exception as e:
-        issues.append(
-            Issue(
-                level="warning",
-                message=(f"Failed to parse task file values;"
-                        f"Continuing without instrument specific metadata (reson: {type(e).__name__})"
-                        ),
-                source=__name__,
-            )
+        logger.warning(
+            f"Failed to parse task file values;"
+            f"Continuing without instrument specific metadata (reson: {type(e).__name__})"
         )
         meta_data[f'{channel}_TASK_NUMBER'] = HeaderEntry(frame_count, 'Number of tasks')
-        return (InstrumentSpecificMetadata(fields=meta_data), issues)
+        return InstrumentSpecificMetadata(fields=meta_data)
     if task_number != len(frame_numbers):
-        issues.append(
-            Issue(
-                level="warning",
-                message=(f"The number of tasks is different to number of frames;"
-                        f"Check config.json tasks for channel: {channel}"
-                        ),
-                source=__name__,
-            )
+        logger.warning(
+            f"The number of tasks is different to number of frames;"
+            f"Check config.json tasks for channel: {channel}"
         )
     if task_number > 3:
         order = check_order(taskValues[3][1], channel)
     elif task_number >= 1:
         order = check_order(taskValues[-1][1], channel)
-        issues.append(
-            Issue(
-                level="info",
-                message=(f"Less than 4 acquisitions, the order determined from setpoint index < 3."
-                        ),
-                source=__name__,
-            )
-        )
+        logger.info(f"Less than 4 acquisitions, the order determined from setpoint index < 3.")
     else:
-        issues.append(
-            Issue(
-                level="warning",
-                message=(f"Not enough setpoint values to determine order."
-                        ),
-                source=__name__,
-            )
-        )
+        logger.warning(f"Not enough setpoint values to determine order.")
         order = 'UNK'
     meta_data[f'{channel}_ORDER'] = HeaderEntry(order, "Acquisition order 'LOW / HIGH'.")
     for i, task in enumerate(sp_expos_values):
@@ -426,4 +342,4 @@ def collect_instrument_specific_metadata(config_path: Path, acq_path: Path, chan
         num = f'{n:03d}' # e.g. 1 -> 001
         meta_data[f'{channel}_TASK_{num}'] = HeaderEntry(' '.join(str(x) for x in task), 'SP1 SP2 SP3 ExpDn')
 
-    return (InstrumentSpecificMetadata(fields=meta_data), issues)
+    return InstrumentSpecificMetadata(fields=meta_data)
