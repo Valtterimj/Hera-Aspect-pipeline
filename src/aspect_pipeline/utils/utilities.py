@@ -362,56 +362,42 @@ def convert_processing_levels(level: str) -> str:
         case '1B' | '1C' : return 'Calibrated'
         case _ : raise ValueError(f'Processing level should be in (0A, 1A, 1A-extra, 1B, 1C) got: {level}')
 
-def get_wavelengths(fits_file: Path) -> list[str] | None:
-    """Get all the wavelenghts of an acquisition from the fits header"""
-    try:
-        with fits.open(fits_file) as hdul:
-            header = hdul[0].header
-            channels = header.get('CHANNELS')
-            channel_list = channels.split(',')
-            wavelengths = []
-            for channel in channel_list:
-                task_number = header.get(f'{channel}_TASK_NUMBER')
-                if task_number == None:
-                    raise ValueError('No task number found.')
-                number = int(task_number)
-                for i in range(number):
-                    index = str(i).zfill(3)
-                    wl = header.get(f'{channel}_WL_{index}', None)
-                    if wl == None:
-                        continue
-                    wavelengths.append(wl)
-                if len(wavelengths) == 0:
-                    return None
-            return wavelengths
-    except Exception:
-        return None
+def get_wavelengths_by_channel(fits_file: Path) -> dict[str, list[int]]:
+    """Get the wavelengths of each channel in an acquisition from the primary FITS header.
 
-def get_wavelengths_by_channel(fits_file: Path) -> dict[str, int]:
-    """Get all the wavelenghts of an acquisition from the fits header"""
-    try:
-        with fits.open(fits_file) as hdul:
-            header = hdul[0].header
-            channels = header.get('CHANNELS')
-            channel_list = channels.split(',')
-            all_wavelengths = {}
+    The frames are read from {channel}_FRAMES, so frames dropped in level 1 are left out
+    and the wavelengths are in the same order as the frames in the data.
 
-            for channel in channel_list:
-                wavelengths = []
-                task_number = header.get(f'{channel}_TASK_NUMBER')
-                if task_number == None:
-                    raise ValueError('No task number found.')
-                number = int(task_number)
-                for i in range(number):
-                    index = str(i).zfill(3)
-                    wl = header.get(f'{channel}_WL_{index}', None)
-                    if wl == None:
-                        continue
-                    wavelengths.append(int(wl))
-                all_wavelengths[channel] = wavelengths
-            return all_wavelengths
-    except Exception:
-        return None
+    Args:
+        fits_file: Path to the FITS file.
+
+    Returns:
+        Wavelengths in nm for each channel listed in the CHANNELS header keyword.
+
+    Raises:
+        OSError: If the file cannot be opened.
+        ValueError: If CHANNELS or a channel's FRAMES keyword is missing, or a frame has no wavelength.
+    """
+    with fits.open(fits_file) as hdul:
+        header = hdul[0].header
+
+    channels = header.get('CHANNELS')
+    if not channels:
+        raise ValueError(f"No CHANNELS keyword in the header of {fits_file}")
+
+    all_wavelengths = {}
+    for channel in channels.split(','):
+        frames = header.get(f'{channel}_FRAMES')
+        if not frames:
+            raise ValueError(f"No {channel}_FRAMES keyword in the header of {fits_file}")
+        wavelengths = []
+        for frame in frames.split(','):
+            wl = header.get(f'{channel}_WL_{frame}')
+            if wl is None:
+                raise ValueError(f"No {channel}_WL_{frame} keyword for frame {frame} in the header of {fits_file}")
+            wavelengths.append(int(wl))
+        all_wavelengths[channel] = wavelengths
+    return all_wavelengths
 
 def get_exposures(fits_file: Path) -> list[str] | None:
     """Get all the exposures of an acquisition from the fits header"""
