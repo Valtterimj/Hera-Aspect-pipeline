@@ -71,18 +71,15 @@ data:
   # Software identification
   swcreate: "ASPECTCAL"
 
-  # Mission phase ID
-  #simulated
-  missphas: "simulated"
+  # Mission phase ID, use SIMULATED for simulated data
+  missphas: "SIMULATED"
 
-  # Mission observation ID
-  observ: "pipeline-testing"
+  # Acquisition ID
+  acq_id: "0000"
 
-  # Observed target
-  object: "didy"
+  "major_version": "1"
 
-  # Observed target (SPICE)
-  target: "didy"
+  "minor_version": "1"
 
   # Solar distance
   # Manually set the solar distance, used in reflectance calibration.
@@ -98,9 +95,9 @@ data:
 pipeline:
 
   # List of pipeline levels to execute.
-  # Values: "0", "1", "1A", "1B", "1C", "2B", "3", "3A", "3B", "3C"
+  # Values: "0", "1", "1A", "1B", "1C", "2", "3", "3A", "3B", "3C"
   # E.g. ["0","1"]
-  levels: ["0", "1", "2", "3"]
+  levels: ["0", "1A", "1B", "1C", "2"]
 
   # List of channels included in processin
   # Values: "Vis", "NIR1", "NIR2", "SWIR"
@@ -121,11 +118,11 @@ analysis:
   # bool -> connecting NIR segments, removing outliers, and smoothing applied or not
   data_filtering: True
 
+  # Save the filtered spectra as a file
+  save_filtered: True
+
   # list[str] -> which analysis are applied C = Composition, T = Taxonomy, M = MGM
   models: ['C']
-
-  # int -> What is the wavelength in nm where NIR1 and NIR2 overlap.
-  nir_overlap: 1225
 
   # int -> threshold for removing outliers
   # increase -> less sensitive to outliers ((deriv - mu) / sigma) > z_threshold)

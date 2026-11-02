@@ -30,14 +30,19 @@ def main() -> None:
     parser = argparse.ArgumentParser(prog="aspect")
     sub = parser.add_subparsers(dest="cdm", required=True)
 
-    run = sub.add_parser("run", help="Run the pipeline")
+    log_options = argparse.ArgumentParser(add_help=False)
+    verbosity = log_options.add_mutually_exclusive_group()
+    verbosity.add_argument("-v", "--verbose", action="store_true", help="Show debug messages")
+    verbosity.add_argument("-q", "--quiet", action="store_true", help="Show only warnings and errors")
+
+    run = sub.add_parser("run", help="Run the pipeline", parents=[log_options])
     run.add_argument(
         "--config",
         default=None,
         help="Path to YAML configurations. If omitted, searches for configs/example.yaml"
     )
 
-    pds4 = sub.add_parser("pds4", help="Generate PDS4 products")
+    pds4 = sub.add_parser("pds4", help="Generate PDS4 products", parents=[log_options])
     pds4.add_argument(
         "--config",
         default=None,
@@ -45,7 +50,7 @@ def main() -> None:
     )
 
 
-    test = sub.add_parser("test", help="Run a minimal pipeline test")
+    test = sub.add_parser("test", help="Run a minimal pipeline test", parents=[log_options])
     test.add_argument(
         "--nn",
         action="store_true",
@@ -62,7 +67,7 @@ def main() -> None:
         help="Instrument models to use: 'Vis-NIR1-NIR2' (default) or 'NIR1-NIR2'"
     )
 
-    view = sub.add_parser("view", help="Visualise a fits or bin file")
+    view = sub.add_parser("view", help="Visualise a fits or bin file", parents=[log_options])
     view_group = view.add_mutually_exclusive_group(required=True)
     view_group.add_argument(
         "--fits",
@@ -75,7 +80,7 @@ def main() -> None:
         help="Path to the .bin file to visualise"
     )
 
-    make_test = sub.add_parser("make-test-set", help="Generate a synthetic raw/calibration test set")
+    make_test = sub.add_parser("make-test-set", help="Generate a synthetic raw/calibration test set", parents=[log_options])
     make_test.add_argument(
         "--input",
         required=True,
@@ -92,7 +97,7 @@ def main() -> None:
         "compare-format": ("Format-aware comparison of two files' content", "differences"),
     }
     for name, (help_text, diff_unit) in compare_commands.items():
-        compare = sub.add_parser(name, help=help_text)
+        compare = sub.add_parser(name, help=help_text, parents=[log_options])
         compare_group = compare.add_mutually_exclusive_group(required=True)
         for ftype in ("json", "bin", "fits"):
             compare_group.add_argument(
@@ -113,7 +118,7 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    setup_logging('INFO')
+    setup_logging('DEBUG' if args.verbose else 'WARNING' if args.quiet else 'INFO')
 
     try: 
         if args.cdm == "run":

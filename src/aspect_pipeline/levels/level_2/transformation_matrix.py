@@ -1,13 +1,16 @@
 import cv2
+import logging
 import numpy as np
 
 from aspect_pipeline.utils.utilities import normalize_to_8bit
+
+logger = logging.getLogger(__name__)
 
 def laplacian(img: np.ndarray) -> np.ndarray:
 
     # Check if the image was loaded successfully
     if img is None:
-        print("Error: Image not found or unable to open")
+        logger.error("Image not found or unable to open")
     
     # Normalize the image to 8 bit integers
     img = normalize_to_8bit(img)
