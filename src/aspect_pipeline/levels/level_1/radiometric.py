@@ -1,10 +1,12 @@
+import logging
 import numpy as np
 from astropy.io.fits import HDUList
 from pathlib import Path
 import pandas as pd
 
-from aspect_pipeline.utils.classes import Issue
 from aspect_pipeline.utils.errors import CalibrationError
+
+logger = logging.getLogger(__name__)
 
 """
 Function for converting the pixel values into scientific units.
@@ -72,8 +74,6 @@ def radiometric_calibration(hdul: HDUList, radiance_file: Path) -> HDUList:
         The modified HDU list of the FITS file
     """
 
-    all_issues: list[Issue] = []
-
     # Data from fits file
     hdu = hdul[0]
     header = hdu.header
@@ -95,22 +95,10 @@ def radiometric_calibration(hdul: HDUList, radiance_file: Path) -> HDUList:
             wl = header.get(f'{channel}_WL_{frame}')
             exposure = header.get(f'{channel}_EXP_{frame}')
             if wl == None:
-                all_issues.append(
-                    Issue(
-                        level='warning',
-                        message=f'No wavelength data found for {channel} frame {frame}. Skipping the frame.',
-                        source=__name__
-                    )
-                )
+                logger.warning(f'No wavelength data found for {channel} frame {frame}. Skipping the frame.')
                 continue
             if exposure == None:
-                all_issues.append(
-                    Issue(
-                        level='warning',
-                        message=f'No exposure data found for {channel} frame {frame}. Skipping the frame.',
-                        source=__name__
-                    )
-                )
+                logger.warning(f'No exposure data found for {channel} frame {frame}. Skipping the frame.')
                 continue
 
             interp_vals = interp_values(df, float(wl))
@@ -118,33 +106,22 @@ def radiometric_calibration(hdul: HDUList, radiance_file: Path) -> HDUList:
             coefficient = float(exposure) * response
 
             # For simulated and test data use different formula
-            if missphase in ('test', 'simulated'):
+            if missphase in ('test', 'SIMULATED'):
                 dist_sun = 1
                 if channel == 'Vis':
                     int_time = 10
                 else:
                     int_time = 20
-                coefficient = (1 / response) * (int_time * dist_sun**2)
-                image /= 0.16
-
-            new_data_cube[i] = image / coefficient
+                # coefficient = (1 / response) * (int_time * dist_sun**2)
+                # image /= 0.16
+                new_data_cube[i] = ((image * coefficient / (int_time * dist_sun**2)) / 0.16).astype(np.float64)
+            else:
+                new_data_cube[i] = image / coefficient
         
         hdul[0].data = new_data_cube
-        all_issues.append(
-            Issue(
-                level='info',
-                message=f'{channel} radiometrically calibrated.',
-                source=__name__,
-            )
-        )
+        logger.info(f'{channel} radiometrically calibrated.')
 
     except Exception as e:
-        all_issues.append(
-            Issue(
-                level='warning',
-                message=f'{channel} radiometric calibration failed: {e}',
-                source=__name__,
-            )
-        )
+        logger.warning(f'{channel} radiometric calibration failed: {e}')
 
-    return hdul, all_issues
+    return hdul

@@ -1,9 +1,11 @@
+import logging
 import numpy as np
 from astropy.io import fits
 from astropy.io.fits import HDUList
 
 from aspect_pipeline.utils.errors import CalibrationError
-from aspect_pipeline.utils.classes import Issue
+
+logger = logging.getLogger(__name__)
 
 """
     This file extracts correlated double sampling (CDS) pixels surrounding the NIR images, storing them into a separate BinaryTableHDU.
@@ -45,18 +47,16 @@ def extract_cds(image: np.ndarray) -> tuple[np.ndarray, list[list[int]]]:
     ]
     return (cleanedImage, cds_pixels)
 
-def extract_cds_pixels(hdul: HDUList) -> tuple[HDUList, list[Issue]]:
+def extract_cds_pixels(hdul: HDUList) -> HDUList:
     """
     Extracts the CDS pixels from NIR images and strores them in a separate BinaryTable.
 
     Parmeters:
         hdul (HDUList): The HDU list of the FITS file that is modified
-    
+
     Returns:
         The modified HDU list of the FITS file
     """
-    all_issues: list[Issue] = []
-
     # Data from fits file
     hdu = hdul[0]
     header = hdu.header
@@ -64,7 +64,7 @@ def extract_cds_pixels(hdul: HDUList) -> tuple[HDUList, list[Issue]]:
     channel = header.get('CHANNELS')
 
     if channel in ('Vis', 'SWIR'):
-        return hdul, all_issues
+        return hdul
     else:
         try:
             # Get image dimensions
@@ -73,16 +73,8 @@ def extract_cds_pixels(hdul: HDUList) -> tuple[HDUList, list[Issue]]:
             slices = header.get('NAXIS3')
 
             if width == 512 and height == 640:
-                all_issues.append(
-                    Issue(
-                        level="info",
-                        message=(
-                            f"Channel {channel} images already has correct shape ({width}, {height})."
-                        ),
-                        source=__name__,
-                    )
-                )
-                return hdul, all_issues
+                logger.info(f"Channel {channel} images already has correct shape ({width}, {height}).")
+                return hdul
 
             # Empty array for cleaned data
             cleaned_data = np.zeros((slices, height - 6, width - 8), dtype=np.float64)
@@ -115,15 +107,7 @@ def extract_cds_pixels(hdul: HDUList) -> tuple[HDUList, list[Issue]]:
             # Create a binary table HDU for the cds pixels
             cds_table = fits.BinTableHDU.from_columns(columns)
             hdul.append(cds_table)
-            all_issues.append(
-                    Issue(
-                        level="info",
-                        message=(
-                            f"CDS pixels extracted for channel {channel}."
-                        ),
-                        source=__name__,
-                    )
-                )
-            return hdul, all_issues
+            logger.info(f"CDS pixels extracted for channel {channel}.")
+            return hdul
         except Exception as e:
             raise CalibrationError(f'Extracting CDS pixels failed; (reason: {e})')

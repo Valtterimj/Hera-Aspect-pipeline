@@ -8,7 +8,7 @@ from pathlib import Path
 from astropy.io import fits
 from astropy.io.fits import Header, PrimaryHDU, ImageHDU, BinTableHDU, HDUList
 
-from aspect_pipeline.utils.classes import Issue, IssueLevel
+from aspect_pipeline.utils.classes import Issue, Filename, IssueLevel
 
 import logging
 logger = logging.getLogger(__name__)
@@ -36,6 +36,62 @@ level_shortcuts = {
     "1": ("1A", "1B", "1C"),
     "3": ("3A", "3B", "3C"),
 }
+
+def generate_filename(
+        filename: Filename,
+) -> str:
+    """Generate a file name for data / PDS label
+    ASPECT filenaming convention is:
+    <instrument_acronym>_<processing_level>_[type]_[subunit]_<descriptor>__<major_version>_<minor_version>.<extension>
+
+    <instrument_acronym> => always asp for ASPECT
+    <processing_level> => PDS labels accept 4 choices (raw, par, cal, del). Inside the pipeline this should be exact level e.g., 0A
+    [type] => For observational product, this has to be one of two values: "sc" for science, "hk" for housekeeping data.
+    [subunit] => This specifies the subunit of an instrument. vis, nir1, nir2, swir or combination vis_nir1_nir2_swir. level 3 should specify the derived product
+    <descriptor> => Makes a given observation of your instrument unique (mandatory). acq_id for ASPECT
+    <major_version>_<minor_version> => major and minor version of your data. The block is sepatated from description by double underscore
+    <extension> => product labels must use the .lblx for data .fits
+    """
+    extension = filename.extension.removeprefix('.') # remove a dot if present
+    return f'{filename.instrument_acronym}_{filename.processing_level}_{filename.type}_{filename.subunit.lower()}_{filename.descriptor}__{filename.major_version}_{filename.minor_version}.{extension}'
+
+def parse_filename(path: str | Path) -> Filename:
+    """Parse an ASPECT file name into a Filename.
+
+    The subunit may contain underscores (e.g. 'vis_nir1_nir2_swir'). This relies on
+    the descriptor never containing an underscore.
+
+    Args:
+        path: Path or file name to parse. Only the file name part is used.
+
+    Returns:
+        Filename with each field of the name as a string.
+
+    Raises:
+        ValueError: If the name does not follow the ASPECT filenaming convention.
+    """
+    name = Path(path).name
+    try:
+        stem, ext = name.split('.', 1)
+        head, version = stem.split('__')
+        major, minor = version.split('_')
+        instrument, level, type_, rest = head.split('_', 3)
+        subunit, descriptor = rest.rsplit('_', 1) # Descriptor from the right so a combined subunit stays whole
+    except ValueError as e:
+        raise ValueError(f"Filename does not follow the ASPECT filenaming convention: {name}") from e
+
+    return Filename(
+        instrument_acronym = instrument,
+        processing_level = level,
+        type = type_,
+        subunit = subunit,
+        descriptor = descriptor,
+        major_version = major,
+        minor_version = minor,
+        extension = ext
+    )
+
+
 
 def parse_levels_to_run(levels: list[str]) -> list[str]:
     levels_to_run: list[str] = []
@@ -159,17 +215,6 @@ def sc_clock_to_base32(sc_seconds: int, offset: int = 0) -> str:
     return result
 
 
-def form_fits_name(channel: str, image_number: str, utc_time: str, calib_lvl: str) -> str:
-    try:
-        utc_format = datetime.strptime(utc_time, "%Y-%m-%dT%H:%M:%S.%f").strftime("%y%m%dT%H%M%S")
-    except Exception as e:
-        utc_format = 'XXXXXXXXXXXXX'
-    if image_number == '':
-        image_number = 'XXXXXX'
-    channel_id = channel_to_id[channel]
-    file_name = f'AS{channel_id}_{image_number}_{utc_format}_{calib_lvl}.fits'
-    return file_name
-
 def form_fits_header_val(key: str, value: str, comment: str, hierarch: bool) -> tuple[str, str]:
     try: 
         key = str(key)
@@ -199,45 +244,29 @@ def fits_in_dir(folder: Path) -> list[Path]:
         files.extend(folder.glob(pat))
     return sorted(set(files))
 
-def convert_to_float64(hdul: HDUList, index: int = 0) -> tuple[HDUList, Issue]:
+def convert_to_float64(hdul: HDUList, index: int = 0) -> HDUList:
     # Replace the .data with a float64
     hdu = hdul[index]
     if hdu.data is not None and np.issubdtype(hdu.data.dtype, np.number):
         hdu.data = hdu.data.astype(np.float64)
         if 'BITPIX' in hdu.header:
             hdu.header['BITPIX'] = -64
-        issue = Issue(
-            level='info',
-            message='HDU data converted to float64',
-            source=__name__,
-        )
+        logger.debug('HDU data converted to float64')
     else:
-        issue = Issue(
-            level='warning',
-            message='HDU data is None or not convertable to float64',
-            source=__name__,
-        )
-    return hdul, issue
+        logger.warning('HDU data is None or not convertable to float64')
+    return hdul
 
-def convert_to_float32(hdul: HDUList, index: int = 0) -> tuple[HDUList, Issue]:
-    # Replace the data with a float32 
+def convert_to_float32(hdul: HDUList, index: int = 0) -> HDUList:
+    # Replace the data with a float32
     hdu = hdul[index]
     if hdu.data is not None and np.issubdtype(hdu.data.dtype, np.number):
         hdu.data = hdu.data.astype(np.float32)
         if 'BITPIX' in hdu.header:
             hdu.header['BITPIX'] = -32
-        issue = Issue(
-            level='info',
-            message='HDU data converted to float32',
-            source=__name__,
-        )
+        logger.debug('HDU data converted to float32')
     else:
-        issue = Issue(
-            level='warning',
-            message='HDU data is None or not convertable to float32',
-            source=__name__,
-        )
-    return hdul, issue
+        logger.warning('HDU data is None or not convertable to float32')
+    return hdul
 
 def normalize_to_8bit(img: np.ndarray) -> np.ndarray:
     # Compute min and max values in the image
@@ -381,56 +410,42 @@ def convert_processing_levels(level: str) -> str:
         case '2' | '2A' | '2B' | '3C': return 'Derived'
         case _ : raise ValueError(f'Processing level should be in (0A, 1A, 1A-extra, 1B, 1C) got: {level}')
 
-def get_wavelengths(fits_file: Path) -> list[str] | None:
-    """Get all the wavelenghts of an acquisition from the fits header"""
-    try:
-        with fits.open(fits_file) as hdul:
-            header = hdul[0].header
-            channels = header.get('CHANNELS')
-            channel_list = channels.split(',')
-            wavelengths = []
-            for channel in channel_list:
-                task_number = header.get(f'{channel}_TASK_NUMBER')
-                if task_number == None:
-                    raise ValueError('No task number found.')
-                number = int(task_number)
-                for i in range(number):
-                    index = str(i).zfill(3)
-                    wl = header.get(f'{channel}_WL_{index}', None)
-                    if wl == None:
-                        continue
-                    wavelengths.append(wl)
-                if len(wavelengths) == 0:
-                    return None
-            return wavelengths
-    except Exception:
-        return None
+def get_wavelengths_by_channel(fits_file: Path) -> dict[str, list[int]]:
+    """Get the wavelengths of each channel in an acquisition from the primary FITS header.
 
-def get_wavelengths_by_channel(fits_file: Path) -> dict[str, int]:
-    """Get all the wavelenghts of an acquisition from the fits header"""
-    try:
-        with fits.open(fits_file) as hdul:
-            header = hdul[0].header
-            channels = header.get('CHANNELS')
-            channel_list = channels.split(',')
-            all_wavelengths = {}
+    The frames are read from {channel}_FRAMES, so frames dropped in level 1 are left out
+    and the wavelengths are in the same order as the frames in the data.
 
-            for channel in channel_list:
-                wavelengths = []
-                task_number = header.get(f'{channel}_TASK_NUMBER')
-                if task_number == None:
-                    raise ValueError('No task number found.')
-                number = int(task_number)
-                for i in range(number):
-                    index = str(i).zfill(3)
-                    wl = header.get(f'{channel}_WL_{index}', None)
-                    if wl == None:
-                        continue
-                    wavelengths.append(int(wl))
-                all_wavelengths[channel] = wavelengths
-            return all_wavelengths
-    except Exception:
-        return None
+    Args:
+        fits_file: Path to the FITS file.
+
+    Returns:
+        Wavelengths in nm for each channel listed in the CHANNELS header keyword.
+
+    Raises:
+        OSError: If the file cannot be opened.
+        ValueError: If CHANNELS or a channel's FRAMES keyword is missing, or a frame has no wavelength.
+    """
+    with fits.open(fits_file) as hdul:
+        header = hdul[0].header
+
+    channels = header.get('CHANNELS')
+    if not channels:
+        raise ValueError(f"No CHANNELS keyword in the header of {fits_file}")
+
+    all_wavelengths = {}
+    for channel in channels.split(','):
+        frames = header.get(f'{channel}_FRAMES')
+        if not frames:
+            raise ValueError(f"No {channel}_FRAMES keyword in the header of {fits_file}")
+        wavelengths = []
+        for frame in frames.split(','):
+            wl = header.get(f'{channel}_WL_{frame}')
+            if wl is None:
+                raise ValueError(f"No {channel}_WL_{frame} keyword for frame {frame} in the header of {fits_file}")
+            wavelengths.append(int(wl))
+        all_wavelengths[channel] = wavelengths
+    return all_wavelengths
 
 def get_exposures(fits_file: Path) -> list[str] | None:
     """Get all the exposures of an acquisition from the fits header"""
@@ -481,23 +496,76 @@ def check_order(sp: float, channel: str) -> str:
         case 'SWIR':
             return 'N/A'
 
-def get_path(input_dir: Path, channel: str,  suffix: str) -> Path | None:
+def get_path(
+        input_dir: Path,
+        *,
+        instrument_acronym: str | None = None,
+        processing_level: str | None = None,
+        type: str | None = None,
+        subunit: str | None = None,
+        descriptor: str | None = None,
+        major_version: str | None = None,
+        minor_version: str | None = None,
+        extension: str | None = None,
+) -> Path:
+    """Find the single file in input_dir whose name matches the given filename fields.
+
+    Fields left as None match any value. Files not following the ASPECT filenaming
+    convention are ignored. Subunit is lowercased and a leading dot is removed from
+    extension, as in generate_filename.
+
+    Args:
+        input_dir: Directory to search.
+        instrument_acronym: Instrument acronym, e.g. 'asp'.
+        processing_level: Processing level, e.g. '1B'.
+        type: Product type, 'sc' or 'hk'.
+        subunit: Subunit, e.g. 'Vis' or 'vis_nir1_nir2_swir'. Matched exactly.
+        descriptor: Descriptor (acq_id).
+        major_version: Major version.
+        minor_version: Minor version.
+        extension: File extension, with or without the leading dot.
+
+    Returns:
+        Path to the matching file.
+
+    Raises:
+        NotADirectoryError: If input_dir is not a directory.
+        FileNotFoundError: If no file matches.
+        ValueError: If more than one file matches.
     """
-        Resolve to path to correct fits file inside the input_dir according to the lvl.
-        E.g. if lvl = 1B the input dir should contain a file ending to '*1B.fits'
-        suffix should be then '1B.fits'
-    """
-    if not input_dir.exists() or not input_dir.is_dir():
-        raise ValueError(f"Not a valid input directory found.")
-    
-    matches = list(input_dir.glob(f"*{suffix}"))
-    channel_id = f'AS{channel_to_id[channel]}'
-    matches = [p for p in matches if p.name.startswith(channel_id)]
+    input_dir = Path(input_dir)
+    if not input_dir.is_dir():
+        raise NotADirectoryError(f"Not a valid input directory: {input_dir}")
+
+    wanted = {
+        'instrument_acronym': instrument_acronym,
+        'processing_level': processing_level,
+        'type': type,
+        'subunit': subunit.lower() if subunit is not None else None,
+        'descriptor': descriptor,
+        'major_version': major_version,
+        'minor_version': minor_version,
+        'extension': extension.removeprefix('.') if extension is not None else None,
+    }
+    wanted = {field: value for field, value in wanted.items() if value is not None}
+
+    matches = []
+    for file in sorted(input_dir.iterdir()):
+        if not file.is_file():
+            continue
+        try:
+            parsed = parse_filename(file)
+        except ValueError:
+            continue
+        if all(getattr(parsed, field) == value for field, value in wanted.items()):
+            matches.append(file)
 
     if not matches:
-        return None
+        raise FileNotFoundError(f"No file matching {wanted} found in {input_dir}")
+    if len(matches) > 1:
+        names = ', '.join(p.name for p in matches)
+        raise ValueError(f"{len(matches)} files match {wanted} in {input_dir}: {names}. Give more fields to select one.")
 
-    # Return first if many
     return matches[0]
 
 def get_frame(fits_path: Path, frame: int) -> np.ndarray:
@@ -509,3 +577,20 @@ def get_frame(fits_path: Path, frame: int) -> np.ndarray:
         if not 0 <= frame < len(data):
             raise IndexError(f"{fits_path}: frame {frame} out of range (0-{len(data) - 1})")
         return np.array(data[frame])
+
+def get_calibration_path(cal_dir: Path, sub_dir: str, channel: str, suffix: str) -> Path:
+    """
+        Resolve to path to correct calibration file inside the calibration fir
+    """
+    func_dir = cal_dir / sub_dir
+    if not func_dir.exists() or not func_dir.is_dir():
+        raise ValueError(f"Not a valid directory found.")
+    
+    matches = list(func_dir.glob(f"*{suffix}", case_sensitive=False))
+    channel_id = f'AS{channel_to_id[channel]}'
+    matches = [p for p in matches if p.name.startswith(channel_id)]
+
+    if not matches:
+        raise ValueError(f"No calibration file for {channel}, {suffix} in {func_dir}")
+    
+    return matches[0]

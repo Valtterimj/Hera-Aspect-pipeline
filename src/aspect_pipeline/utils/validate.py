@@ -11,36 +11,36 @@ from aspect_pipeline.utils.utilities import channel_to_id
 ALLOWED_LEVELS = list(get_args(Level))
 ALLOWED_CHANNELS = set(get_args(Channel))
 
-def _require_mapping(d: dict[str, Any], key: str) -> dict[str, Any]:
+def require_mapping(d: dict[str, Any], key: str) -> dict[str, Any]:
     v = d.get(key)
     if not isinstance(v, dict):
         raise ValidationError(f"Missing or invalid section '{key}:' Must be a mapping/object")
     return v
 
-def _require_str(d: dict[str, Any], key: str) -> str:
+def require_str(d: dict[str, Any], key: str) -> str:
     v = d.get(key)
     if not isinstance(v, str) or v.strip() == "":
         raise ValidationError(f"Missing or invalid string: {key}")
     return v.strip()
 
-def _resolve_str(d: dict[str, Any], key: str) -> str | None:
+def resolve_str(d: dict[str, Any], key: str) -> str | None:
     s = d.get(key)
     if not isinstance(s, str) or s.strip() == "":
         return None
     else:
         return s.strip()
 
-def _require_any(d: dict[str, Any], key: str) -> Any:
+def require_any(d: dict[str, Any], key: str) -> Any:
     s = d.get(key)
     return s
 
-def _require_bool(d: dict[str, Any], key: str) -> bool:
+def require_bool(d: dict[str, Any], key: str) -> bool:
     v = d.get(key)
     if not isinstance(v, bool):
         raise ValidationError(f"Missing or invalid boolean: {key}")
     return v
 
-def _require_list_of_str(d: dict[str, Any], key:str) -> list[str]:
+def require_list_of_str(d: dict[str, Any], key:str) -> list[str]:
     v = d.get(key)
     if not isinstance(v, list) or len(v) == 0:
         raise ValidationError(f"Missing or invalid list: {key}, must be non-empty list")
@@ -52,22 +52,22 @@ def _require_list_of_str(d: dict[str, Any], key:str) -> list[str]:
         out.append(itm.strip())
     return out
 
-def _resolve_path(raw_path: str, base_dir: Path) -> Path:
+def resolve_path(raw_path: str, base_dir: Path) -> Path:
     p = Path(raw_path).expanduser()
     if not p.is_absolute():
         p = base_dir / p
     return p.resolve()
 
-def _resolve_optional_path(raw_value: Any, base_dir: Path) -> Path | None:
+def resolve_optional_path(raw_value: Any, base_dir: Path) -> Path | None:
     if raw_value is None:
         return None
     if isinstance(raw_value, str):
         if raw_value.strip() == "":
             return None
-        return _resolve_path(raw_path=raw_value, base_dir=base_dir)
+        return resolve_path(raw_path=raw_value, base_dir=base_dir)
     raise ValidationError(f"Resolving path failed, (must be a string, Path or empty)")
 
-def _validate_path(path: Path, kind: Literal["file", "dir"] | None = None) -> Path:
+def validate_path(path: Path, kind: Literal["file", "dir"] | None = None) -> Path:
     """Validate that path exists. Can specify type (file or dir) use None if both are fine"""
     if kind not in {"file", "dir", None}:
         raise ValueError(f"Invalid kind '{kind}', expected 'file', 'dir', or None.")
@@ -83,7 +83,7 @@ def _validate_path(path: Path, kind: Literal["file", "dir"] | None = None) -> Pa
 
     return path
 
-def _expand_levels(levels: Sequence[str]) -> list[str]:
+def expand_levels(levels: Sequence[str]) -> list[str]:
     expanded_levels = set()
 
     for level in levels:
@@ -98,7 +98,7 @@ def _expand_levels(levels: Sequence[str]) -> list[str]:
     
     return [l for l in ALLOWED_LEVELS if l in expanded_levels]
 
-def _validate_levels(levels: list[str]) -> None:
+def validate_levels(levels: list[str]) -> None:
     bad = [x for x in levels if x not in ALLOWED_LEVELS]
     if bad:
         raise ValidationError(
@@ -106,7 +106,7 @@ def _validate_levels(levels: list[str]) -> None:
             f"Allowed: {sorted(ALLOWED_LEVELS)}"
         )
 
-def _validate_channels(channels: Sequence[str]) -> None:
+def validate_channels(channels: Sequence[str]) -> None:
     bad = [x for x in channels if x not in ALLOWED_CHANNELS]
     if bad:
         raise ValidationError(
@@ -114,7 +114,7 @@ def _validate_channels(channels: Sequence[str]) -> None:
             f"Allowed: {sorted(ALLOWED_CHANNELS)}"
         )
 
-def _validate_float_string(value) -> str | None:
+def validate_float_string(value) -> str | None:
     if value is None:
         return None
     
@@ -128,7 +128,7 @@ def _validate_float_string(value) -> str | None:
     except (ValueError, TypeError):
         return None
 
-def _validate_output_dir(output_dir: Path | None, missphas: str, base_dir: Path | None = None) -> Path:
+def validate_output_dir(output_dir: Path | None, acq_id: str, base_dir: Path | None = None) -> Path:
 
     if output_dir:
         output_path = output_dir.expanduser()
@@ -140,7 +140,7 @@ def _validate_output_dir(output_dir: Path | None, missphas: str, base_dir: Path 
             base_dir = Path.cwd()
         base_output = base_dir / "outputs"
     
-    final_output = base_output / missphas
+    final_output = base_output / acq_id
 
     final_output.mkdir(parents=True, exist_ok=True)
     if not final_output.exists() or not final_output.is_dir():
@@ -148,7 +148,7 @@ def _validate_output_dir(output_dir: Path | None, missphas: str, base_dir: Path 
     
     return final_output
     
-def _validate_level_0_input_dir(input_dir: Path) -> InputLayout:
+def validate_level_0_input_dir(input_dir: Path) -> InputLayout:
 
     _ACQ_RE = re.compile(r"^acq_\d+.*$") # folder name for images. Has to start with acq_
 
@@ -195,23 +195,6 @@ def _validate_level_0_input_dir(input_dir: Path) -> InputLayout:
         config_json=config_json,
         acquisition_dir=acq_dir,
     )
-
-def _get_path(input_dir: Path, channel: str,  suffix: str) -> Path:
-    """
-        Resolve to path to correct fits file inside the input_dir according to the lvl.
-        E.g. if lvl = 1B the input dir should contain a file ending to '*1A.fits'
-    """
-    if not input_dir.exists() or not input_dir.is_dir():
-        raise ValidationError(f"Not a valid input directory found.")
-    
-    matches = list(input_dir.glob(f"*{suffix}", case_sensitive=False))
-    channel_id = f'AS{channel_to_id[channel]}'
-    matches = [p for p in matches if p.name.startswith(channel_id)]
-
-    if not matches:
-        raise ValidationError(f"No file with suffix '{suffix}' for channel '{channel}' found in {input_dir}.")
-    
-    return matches[0]
 
 
 

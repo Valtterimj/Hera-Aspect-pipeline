@@ -1,11 +1,14 @@
+import logging
 import numpy as np
 from pathlib import Path
 from astropy.io.fits import HDUList
 
-from aspect_pipeline.utils.classes import BadRegion, Issue
+from aspect_pipeline.utils.classes import BadRegion
 from aspect_pipeline.utils.errors import CalibrationError
 
-def parse_bad_pixel_list(txt_path: str | Path) -> tuple[list[BadRegion], list[Issue]]:
+logger = logging.getLogger(__name__)
+
+def parse_bad_pixel_list(txt_path: str | Path) -> list[BadRegion]:
     """
     Parses the tab separated BADPIXELS TXT file into structured region objects. 
 
@@ -18,7 +21,6 @@ def parse_bad_pixel_list(txt_path: str | Path) -> tuple[list[BadRegion], list[Is
     return: A list of BadRedion elements created based on the txt file
     """
 
-    all_issues: list[Issue] = []
     regions: list[BadRegion] = []
 
     with open(txt_path, "r", encoding='utf-8', errors='replace') as f:
@@ -32,13 +34,7 @@ def parse_bad_pixel_list(txt_path: str | Path) -> tuple[list[BadRegion], list[Is
             parts = line.split("\t")
             parts = [p.strip() for p in parts if p.strip() != ""]
             if len(parts) != 5:
-                all_issues.append(
-                    Issue(
-                        level='warning',
-                        message=f'Error in parsing bad pixels on line {line_no}: Expexted 5 tab fields, got {len(parts)}',
-                        source=__name__,
-                    )
-                )
+                logger.warning(f'Error in parsing bad pixels on line {line_no}: Expexted 5 tab fields, got {len(parts)}')
                 continue
         
             t, col_s, row_s, sx_s, sy_s = parts
@@ -52,7 +48,7 @@ def parse_bad_pixel_list(txt_path: str | Path) -> tuple[list[BadRegion], list[Is
                 size_x=int(sx_s),
                 size_y=int(sy_s)
             ))
-        return regions, all_issues
+        return regions
 
 def slice_region(r: BadRegion) -> tuple[slice, slice]:
     """
@@ -164,7 +160,7 @@ def replace_nan_8neighbor(frame: np.ndarray, max_iter: int = 100) -> np.ndarray:
 
     return a
 
-def replace_bad_pixels(hdul: HDUList, bp_file: Path) -> tuple[HDUList, list[Issue]]:
+def replace_bad_pixels(hdul: HDUList, bp_file: Path) -> HDUList:
     """
         Replace bad pixels in a FITS data cube using an external bad-pixel map.
 
@@ -181,8 +177,6 @@ def replace_bad_pixels(hdul: HDUList, bp_file: Path) -> tuple[HDUList, list[Issu
             Open FITS HDUList with data stored in the primary HDU
         returns: HDUList with bad-pixel corrected data
     """
-    all_issues: list[Issue] = []
-
     # Data from fits file
     hdu = hdul[0]
     header = hdu.header
@@ -191,20 +185,13 @@ def replace_bad_pixels(hdul: HDUList, bp_file: Path) -> tuple[HDUList, list[Issu
     channel = header.get('CHANNELS')
 
     if channel == 'SWIR':
-        return hdul, all_issues
-  
+        return hdul
+
     try:
-        regions, parsing_issues = parse_bad_pixel_list(bp_file)
-        all_issues.extend(parsing_issues)
+        regions = parse_bad_pixel_list(bp_file)
     except Exception as e:
-        all_issues.append(
-            Issue(
-                level='warning',
-                message=f'Parsing bad pixel list failed; reason: {e}',
-                source=__name__,
-            )
-        )
-        return hdul, all_issues
+        logger.warning(f'Parsing bad pixel list failed; reason: {e}')
+        return hdul
 
     slice_list = []
 
@@ -212,13 +199,7 @@ def replace_bad_pixels(hdul: HDUList, bp_file: Path) -> tuple[HDUList, list[Issu
         try:
             slice_list.append(slice_region(r))
         except ValueError as e:
-            all_issues.append(
-                Issue(
-                    level='warning',
-                    message=f'Error slicing the region {r}; reason: {e}',
-                    source=__name__,
-                )
-            )
+            logger.warning(f'Error slicing the region {r}; reason: {e}')
             
     try:
         if data.ndim == 2:
@@ -242,21 +223,9 @@ def replace_bad_pixels(hdul: HDUList, bp_file: Path) -> tuple[HDUList, list[Issu
 
         hdul[0].data = new_data
 
-        all_issues.append(
-                    Issue(
-                        level="info",
-                        message=(f"Dad pixels replaced for {channel}"),
-                        source=__name__,
-                    )
-        )
-        return hdul, all_issues
+        logger.info(f"Dad pixels replaced for {channel}")
+        return hdul
 
     except Exception as e:
-        all_issues.append(
-                    Issue(
-                        level="warning",
-                        message=(f"Bad pixel replacement failed for {channel}; (reason: {e})"),
-                        source=__name__,
-                    )
-        )
-        return hdul, all_issues
+        logger.warning(f"Bad pixel replacement failed for {channel}; (reason: {e})")
+        return hdul
