@@ -11,7 +11,7 @@ from aspect_pipeline.levels.level_0.run import run_level_0
 from aspect_pipeline.levels.level_1.run import run_level_1
 from aspect_pipeline.levels.level_2.run import run_level_2
 
-from aspect_pipeline.pds4.generate_pds4_label import generate_label
+from aspect_pipeline.pds4.generate_pds4_label import generate_label, copy_schemas
 
 
 logger = logging.getLogger(__name__)
@@ -144,6 +144,8 @@ def run_generate_pds4(config_path: Path) -> None:
     if not output or output.is_dir():
             output = input / 'pds4'
 
+    schemas_source_dir = templates_dir.parent / "pds4_templates" / "schema"
+
     if input.is_file():
         logger.info(f"Generating PDS4 product for file: {input}")
         try: 
@@ -163,4 +165,6 @@ def run_generate_pds4(config_path: Path) -> None:
                 logger.info(f"PDS4 product created for {file}. Saved to: {output}")
             except Exception as e:
                 raise PipelineError(f'Generating PDS4 label failed for file: {file} \nreason: {e}') 
+
+    copy_schemas(schema_source_dir=schemas_source_dir, output_pds4_dir=output)
         

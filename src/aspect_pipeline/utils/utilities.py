@@ -254,30 +254,77 @@ def normalize_to_8bit(img: np.ndarray) -> np.ndarray:
     # Convert to 8-bit integer
     return normalized.astype(np.uint8)
 
-def find_fits_files(directory: Path, levels: list[str], channels: list[str]) -> tuple[list[Path], list[str]]:
-    """
-    Search a directory for .fits files matching given level endings.
-    """
+def find_fits_files(
+        directory: Path, levels: list[str], channels: list[str]
+) -> tuple[list[Path], list[str]]:
+    """Search a directory for .fits files matching given level endings."""
     matched_files = []
     missing_files = []
 
     for level in levels:
-        suffix = f'{level}.fits'
+        # ------------------------------------------------------------------
+        # 1. Single-channel levels (0A, 1A, 1B, 1C)
+        # ------------------------------------------------------------------
         if level in ['0A', '1A', '1B', '1C']:
+            suffix = f'{level}.fits'
             for channel in channels:
                 p = get_path(directory, channel, suffix)
                 if p is None:
                     missing_files.append(f'({level}, {channel})')
                 else:
                     matched_files.append(p)
-        if level in ['2B', '3A', '3B', '3C']:
+
+        # ------------------------------------------------------------------
+        # 2. Level 2 (Accepts either '2' or '2B')
+        # ------------------------------------------------------------------
+        elif level in ['2', '2A', '2B']:
             ch = 'all'
-            p = get_path(directory, ch, suffix)
+            # Try 2B.fits first, then fallback to 2.fits
+            p = get_path(directory, ch, '2B.fits')
             if p is None:
-                missing_files.append(f'({level}, {channel})')
+                p = get_path(directory, ch, f'{level}.fits')
+
+            # Fallback: glob for any ASP_*_2*.fits file
+            if p is None:
+                glob_matches = list(directory.glob('ASP_*_2*.fits'))
+                if glob_matches:
+                    p = glob_matches[0].name
+
+            if p is None:
+                missing_files.append(f'({level}, {ch})')
             else:
                 matched_files.append(p)
-    
+
+        # ------------------------------------------------------------------
+        # 3. Level 3 Analysis products (3A, 3B, 3C)
+        # ------------------------------------------------------------------
+        elif level in ['3', '3A', '3B', '3C']:
+            ch = 'all'
+            found = False
+
+        # Check standard name as well as descriptive suffixes (e.g. _3C_Composition.fits)
+            possible_suffixes = [f'{level}.fits']
+            if level == '3C':
+                possible_suffixes.extend(['3C_Composition.fits', '3C_Taxonomy.fits'])
+            elif level == '3B':
+                possible_suffixes.extend(['3B_MGM.fits', '3B_Parameters.fits'])
+
+            for sfx in possible_suffixes:
+                p = get_path(directory, ch, sfx)
+                if p is not None:
+                    matched_files.append(p)
+                    found = True
+
+            # Fallback: glob for ASP_*_{level}*.fits
+            if not found:
+                glob_matches = list(directory.glob(f'ASP_*_{level}*.fits'))
+                if glob_matches:
+                    matched_files.extend([f.name for f in glob_matches])
+                    found = True
+
+            if not found:
+                missing_files.append(f'({level}, {ch})')
+
     return matched_files, missing_files
 
 def convert_to_zulu_time(time: str, offset: str | None = None) -> str:
@@ -331,6 +378,7 @@ def convert_processing_levels(level: str) -> str:
         case '1A' | '1A-extra' : return 'Raw'
         case '1B' : return 'Partially Processed'
         case '1C' : return 'Calibrated'
+        case '2' | '2A' | '2B' | '3C': return 'Derived'
         case _ : raise ValueError(f'Processing level should be in (0A, 1A, 1A-extra, 1B, 1C) got: {level}')
 
 def get_wavelengths(fits_file: Path) -> list[str] | None:
