@@ -1,14 +1,17 @@
 
+import logging
 import numpy as np
 from pathlib import Path
 from astropy.io import fits
 from astropy.io.fits import Header
 from dataclasses import is_dataclass, fields
 
-from aspect_pipeline.utils.utilities import list_channel_frames, decompress_jp2, sc_clock_to_base32, form_fits_name
+from aspect_pipeline.utils.utilities import list_channel_frames, decompress_jp2, sc_clock_to_base32, generate_filename
 from aspect_pipeline.utils.errors import PipelineError
-from aspect_pipeline.utils.classes import InputLayout, Config, Issue, HeaderEntry
+from aspect_pipeline.utils.classes import InputLayout, Config, Filename
 from aspect_pipeline.levels.level_0.metadata import collect_metadata
+
+logger = logging.getLogger(__name__)
 
 def add_entries_to_header(hdr: Header, entries: object, hierarch: bool = False) -> None:
     if hasattr(entries, "fields") and isinstance(entries.fields, dict):
@@ -35,7 +38,7 @@ def add_entries_to_header(hdr: Header, entries: object, hierarch: bool = False) 
 
             
 
-def build_fits(input: InputLayout, cfg: Config, channel: str) -> tuple[Path, list[Issue]]:
+def build_fits(input: InputLayout, cfg: Config, channel: str) -> Path:
     """
     Creates a new level_0 FITS file by combining releavnt metadata with the acquisitions.
     
@@ -49,16 +52,13 @@ def build_fits(input: InputLayout, cfg: Config, channel: str) -> tuple[Path, lis
     :rtype: Path
     """
 
-    all_issues: list[Issue] = []
-
     # Primary HDU
     primary_hdu = fits.PrimaryHDU()
     primary_header = primary_hdu.header
 
     # Collect metadata
     try:
-        meta_data, meta_issues = collect_metadata(input=input, spice=cfg.run.spice_dir, cfg=cfg.data, channel=channel)
-        all_issues.extend(meta_issues)
+        meta_data = collect_metadata(input=input, spice=cfg.run.spice_dir, cfg=cfg.data, channel=channel)
     except PipelineError as e:
         raise PipelineError("build_fits failed. Error while collecting metadata.") from e
     
@@ -87,28 +87,18 @@ def build_fits(input: InputLayout, cfg: Config, channel: str) -> tuple[Path, lis
                 file_path = Path(acq_dir) / bin_file
                 with file_path.open('rb') as f:
                     bin_data = f.read()
-                if len(bin_data) != 4: 
-                    all_issues.append(
-                        Issue(
-                            level="error",
-                            message=(f"SWIR file {file_path} does not contain excatly 4 bytes."
-                                    f"Skipping the file."
-                                    ),
-                            source=__name__,
-                        )
+                if len(bin_data) != 4:
+                    logger.error(
+                        f"SWIR file {file_path} does not contain excatly 4 bytes."
+                        f"Skipping the file."
                     )
                     continue
                 value = int.from_bytes(bin_data, 'big' , signed=False)
                 values.append(value)
         except Exception as e:
-            all_issues.append(
-                Issue(
-                    level="error",
-                    message=(f"Error reading binary file {file_path}: {e}"
-                            f"Skipping the file."
-                            ),
-                    source=__name__,
-                )
+            logger.error(
+                f"Error reading binary file {file_path}: {e}"
+                f"Skipping the file."
             )
         image = np.array(values, dtype=np.uint32)
     else:
@@ -116,7 +106,7 @@ def build_fits(input: InputLayout, cfg: Config, channel: str) -> tuple[Path, lis
             height = 1024
             width = 1024
         else:
-            if cfg.data.missphas == 'simulated':
+            if cfg.data.missphas == 'SIMULATED':
                 height = 512
                 width = 640
             else:
@@ -134,14 +124,9 @@ def build_fits(input: InputLayout, cfg: Config, channel: str) -> tuple[Path, lis
                     array = np.fromfile(file_path, dtype='<u2').reshape((height, width)) # little-endian 16-bit unsigned
                 image_data.append(array)
             except Exception as e:
-                all_issues.append(
-                    Issue(
-                        level="error",
-                        message=(f"Error reading binary file {file_path}: {e}"
-                                f"Skipping the file."
-                                ),
-                        source=__name__,
-                    )
+                logger.error(
+                    f"Error reading binary file {file_path}: {e}"
+                    f"Skipping the file."
                 )
 
 
@@ -152,30 +137,31 @@ def build_fits(input: InputLayout, cfg: Config, channel: str) -> tuple[Path, lis
     primary_hdu.data = image
 
     # Add comments to help the readability
-    primary_header.insert('PROCLEVL',('COMMENT', ' - - - - - - - - Instrument data - - - - - - - - '), after=True)
     primary_header.insert('SPICE_MK',('COMMENT', ' - - - - - - - - SPICE data - - - - - - - - '), after=False)
     primary_header.insert('SOL_ELNG',('COMMENT', ' - - - - - - - - Instrument specific data - - - - - - - - '), after=True)
 
     # Generate FITS file name 
-    utc_time = primary_header.get('DATE_OBS')
-    sc_clock = primary_header.get('SC_CLK')
-    if sc_clock in (None, 'UNK'):
-        sc_clock = 0
-    image_number = sc_clock_to_base32(sc_seconds=sc_clock)
-    fits_name = form_fits_name(channel, image_number, utc_time, '0A')
+    acq_id = cfg.data.acq_id
+    major_version = cfg.data.major_version
+    minor_version = cfg.data.minor_version
+    filename_class = Filename(
+        instrument_acronym='asp',
+        processing_level='0A',
+        type='sc',
+        subunit=f'{channel}',
+        descriptor=f'{acq_id}',
+        major_version=f'{major_version}',
+        minor_version=f'{minor_version}',
+        extension='fits'
+    )
+    fits_name = generate_filename(filename_class)
     primary_header['FILENAME'] = fits_name
 
     # Create a FITS file 
     fits_file = cfg.run.output_dir / fits_name
     try:
         primary_hdu.writeto(fits_file, overwrite=True)
-        all_issues.append(
-                Issue(
-                    level="info",
-                    message=(f"New fits file created: {fits_file}"),
-                    source=__name__,
-                )
-            )
+        logger.info(f"New fits file created: {fits_file}")
     except Exception as e:
             raise PipelineError(f'Error writing a fits file.') from e
-    return fits_file, all_issues
+    return fits_file
