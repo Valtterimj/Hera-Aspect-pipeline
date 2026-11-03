@@ -73,12 +73,18 @@ data:
 
   # Mission phase ID, use SIMULATED for simulated data
   missphas: "SIMULATED"
+  # Mission phase ID, use SIMULATED for simulated data
+  missphas: "SIMULATED"
 
+  # Acquisition ID
+  acq_id: "0000"
   # Acquisition ID
   acq_id: "0000"
 
   "major_version": "1"
+  "major_version": "1"
 
+  "minor_version": "1"
   "minor_version": "1"
 
   # Solar distance
@@ -95,6 +101,7 @@ data:
 pipeline:
 
   # List of pipeline levels to execute.
+  # Values: "0", "1", "1A", "1B", "1C", "2", "3", "3A", "3B", "3C"
   # Values: "0", "1", "1A", "1B", "1C", "2", "3", "3A", "3B", "3C"
   # E.g. ["0","1"]
   levels: ["0", "1A", "1B", "1C", "2","3"]
@@ -117,6 +124,9 @@ analysis:
 
   # bool -> connecting NIR segments, removing outliers, and smoothing applied or not
   data_filtering: True
+
+  # Save the filtered spectra as a file
+  save_filtered: True
 
   # Save the filtered spectra as a file
   save_filtered: True
