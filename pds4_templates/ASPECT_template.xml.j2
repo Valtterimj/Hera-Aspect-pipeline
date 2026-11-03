@@ -36,7 +36,7 @@ If the dictionary versions are updated make sure the information version matches
     <Identification_Area>
         <!--TODO: Check correct Bundle and Collection -->
         <logical_identifier>urn:nasa:pds:hera_milani:aspect:image0001</logical_identifier>
-        <version_id>1.0</version_id>
+        <version_id>{{ version_id | default('1.0') }}</version_id>
         <title>{{ title }}</title>
         <!--TODO: Update the information model version if necessary -->
         <information_model_version>1.25.0.0</information_model_version>
@@ -44,7 +44,7 @@ If the dictionary versions are updated make sure the information version matches
         <Modification_History>
             <Modification_Detail>
                 <modification_date>2026-04-23</modification_date>
-                <version_id>1.0</version_id>
+                <version_id>{{ version_id | default('1.0') }}</version_id>
                 <description>Initial template.</description>
             </Modification_Detail>
         </Modification_History>

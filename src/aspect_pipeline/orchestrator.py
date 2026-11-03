@@ -137,9 +137,9 @@ def run_generate_pds4(config_path: Path) -> None:
     if input.is_file():
         logger.info(f"Generating PDS4 product for file: {input}")
         try: 
-            generate_label(input, output)
+            generate_label(input, templates_dir, output, config=cfg)
         except Exception as e:
-            raise PipelineError(f'Generating PDS4 label failed for file: {file} \nreason: {e}') 
+            raise PipelineError(f'Generating PDS4 label failed for file: {input} \nreason: {e}') 
     
     else:
         logger.info(f"Generating PDS4 products for levels: {products}")
@@ -147,9 +147,9 @@ def run_generate_pds4(config_path: Path) -> None:
         if len(missing) > 0:
             logger.warning(f"Missing fits files for the processing levels: {missing}.")
         for file in matches:
-            path = input / file
+            path = file if isinstance(file, Path) and file.is_file() else input / (file.name if hasattr(file, 'name') else file)
             try: 
-                generate_label(path, templates_dir, output)
+                generate_label(path, templates_dir, output, config=cfg)
                 logger.info(f"PDS4 product created for {file}. Saved to: {output}")
             except Exception as e:
                 raise PipelineError(f'Generating PDS4 label failed for file: {file} \nreason: {e}') 

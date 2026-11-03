@@ -66,6 +66,9 @@ class pds4_config:
     output: Path
     products: list[Level]
     channels: list[Channel]
+    major_version: str = "1"
+    minor_version: str = "0"
+    config_path: Optional[Path] = None
 
 @dataclass(frozen=True)
 class InputLayout:

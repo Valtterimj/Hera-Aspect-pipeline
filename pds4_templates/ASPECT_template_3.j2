@@ -31,14 +31,14 @@
     <!--TODO: Check correct Bundle and Collection -->
     <Identification_Area>
         <logical_identifier>{{ main_logical_lid }}</logical_identifier>
-        <version_id>1.0</version_id>
+        <version_id>{{ version_id | default('1.0') }}</version_id>
         <title>{{ title }}</title>
         <information_model_version>1.24.0.0</information_model_version>
         <product_class>Product_Observational</product_class>
         <Modification_History>
             <Modification_Detail>
                 <modification_date>{{ modification_date }}</modification_date>
-                <version_id>1.0</version_id>
+                <version_id>{{ version_id | default('1.0') }}</version_id>
                 <description>Initial template.</description>
             </Modification_Detail>
         </Modification_History>
@@ -161,21 +161,24 @@
                     <pds:local_reference_type>imaging_parameters_to_image_object</pds:local_reference_type>
                 </pds:Local_Internal_Reference>
 
-                <!-- ONLY inject Calibration blocks for Level 1B and higher -->
                 <img:Dark_Current_Correction>
                     <img:active_flag>true</img:active_flag>
                     <img:processing_venue>Ground</img:processing_venue>
                 </img:Dark_Current_Correction>
-                
+                <img:Detector>
+                    <img:bad_pixel_replacement_flag>true</img:bad_pixel_replacement_flag>
+                    <!-- Optional: ID or name of the table/map used -->
+                    <!-- <img:bad_pixel_replacement_table_id>1</img:bad_pixel_replacement_table_id> -->
+                </img:Detector>
                 <img:Flat_Field_Correction>
                     <img:active_flag>true</img:active_flag>
                     <img:processing_venue>Ground</img:processing_venue>
                 </img:Flat_Field_Correction>
-                
                 <img:Radiometric_Correction>
                     <img:active_flag>true</img:active_flag>
-                    <img:radiometric_type>{{ radiometric_type | default('Radiance Factor') }}</img:radiometric_type>
+                    <img:radiometric_type>{{ radiometric_type }}</img:radiometric_type>
                 </img:Radiometric_Correction>
+
 
                 <!-- Instrument state -->
                 <img:Instrument_State>
