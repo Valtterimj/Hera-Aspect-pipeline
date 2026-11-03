@@ -295,66 +295,104 @@ def find_fits_files(
         # 1. Single-channel levels (0A, 1A, 1B, 1C)
         # ------------------------------------------------------------------
         if level in ['0A', '1A', '1B', '1C']:
-            suffix = f'{level}.fits'
             for channel in channels:
-                p = get_path(directory, channel, suffix)
+                p = None
+                try:
+                    p = get_path(
+                        directory,
+                        subunit=channel,
+                        processing_level=level,
+                        extension='fits'
+                    )
+                except FileNotFoundError:
+                    # Fallback for simulated files (e.g., AS0_*_1A.fits)
+                    ch_id = channel_to_id.get(channel)
+                    pfx = f"AS{ch_id}_" if ch_id is not None else f"{channel}_"
+                    matches = list(directory.glob(f"{pfx}*_{level}.fits"))
+                    p = matches[0] if matches else None
+
                 if p is None:
                     missing_files.append(f'({level}, {channel})')
                 else:
-                    matched_files.append(p)
+                    if p not in matched_files:
+                        matched_files.append(p)
 
         # ------------------------------------------------------------------
         # 2. Level 2 (Accepts either '2' or '2B')
         # ------------------------------------------------------------------
         elif level in ['2', '2A', '2B']:
             ch = 'all'
-            # Try 2B.fits first, then fallback to 2.fits
-            p = get_path(directory, ch, '2B.fits')
-            if p is None:
-                p = get_path(directory, ch, f'{level}.fits')
+            p = None
+
+            # Try 2B first, then 2
+            try_levels = ['2B', '2'] if level == '2' else [level]
+            for lvl in try_levels:
+                try:
+                    p = get_path(
+                        directory,
+                        processing_level=lvl,
+                        extension='fits'
+                    )
+                    break
+                except FileNotFoundError:
+                    pass
 
             # Fallback: glob for any ASP_*_2*.fits file
             if p is None:
-                glob_matches = list(directory.glob('ASP_*_2*.fits'))
+                glob_matches = list(directory.glob(f'ASP_*_{level}*.fits')) or list(directory.glob('ASP_*_2*.fits'))
                 if glob_matches:
-                    p = glob_matches[0].name
+                    p = glob_matches[0]
 
             if p is None:
                 missing_files.append(f'({level}, {ch})')
             else:
-                matched_files.append(p)
+                if p not in matched_files:
+                    matched_files.append(p)
 
         # ------------------------------------------------------------------
         # 3. Level 3 Analysis products (3A, 3B, 3C)
         # ------------------------------------------------------------------
+        
         elif level in ['3', '3A', '3B', '3C']:
             ch = 'all'
             found = False
 
-        # Check standard name as well as descriptive suffixes (e.g. _3C_Composition.fits)
-            possible_suffixes = [f'{level}.fits']
+            # Search by subunit name if applicable
+            subunits = [None]
             if level == '3C':
-                possible_suffixes.extend(['3C_Composition.fits', '3C_Taxonomy.fits'])
+                subunits = ['composition']
+                #subunits = ['composition', 'taxonomy', None]
             elif level == '3B':
-                possible_suffixes.extend(['3B_MGM.fits', '3B_Parameters.fits'])
+                subunits = ['mgm', 'parameters', None]
 
-            for sfx in possible_suffixes:
-                p = get_path(directory, ch, sfx)
-                if p is not None:
-                    matched_files.append(p)
-                    found = True
+            for sub in subunits:
+                try:
+                    p = get_path(
+                        directory,
+                        processing_level=level,
+                        subunit=sub,
+                        extension='fits'
+                    )
+                    if p not in matched_files:
+                        matched_files.append(p)
+                        found = True
+                except FileNotFoundError:
+                    pass
 
-            # Fallback: glob for ASP_*_{level}*.fits
+            # Fallback: glob for ASP_*_{level}*.fits (e.g. ASP_*_3C_Composition.fits)
             if not found:
                 glob_matches = list(directory.glob(f'ASP_*_{level}*.fits'))
                 if glob_matches:
-                    matched_files.extend([f.name for f in glob_matches])
+                    for f in glob_matches:
+                        if f not in matched_files:
+                            matched_files.append(f)
                     found = True
 
             if not found:
                 missing_files.append(f'({level}, {ch})')
 
     return matched_files, missing_files
+
 
 def convert_to_zulu_time(time: str, offset: str | None = None) -> str:
     """

@@ -31,14 +31,14 @@
     <!--TODO: Check correct Bundle and Collection -->
     <Identification_Area>
         <logical_identifier>{{ main_logical_lid }}</logical_identifier>
-        <version_id>1.0</version_id>
+        <version_id>{{ version_id | default('1.0') }}</version_id>
         <title>{{ title }}</title>
         <information_model_version>1.24.0.0</information_model_version>
         <product_class>Product_Observational</product_class>
         <Modification_History>
             <Modification_Detail>
                 <modification_date>{{ modification_date }}</modification_date>
-                <version_id>1.0</version_id>
+                <version_id>{{ version_id | default('1.0') }}</version_id>
                 <description>Initial template.</description>
             </Modification_Detail>
         </Modification_History>

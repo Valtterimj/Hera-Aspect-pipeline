@@ -30,14 +30,14 @@
     <!--TODO: Check correct Bundle and Collection -->
     <Identification_Area>
         <logical_identifier>{{ main_logical_lid }}</logical_identifier>
-        <version_id>1.0</version_id>
+        <version_id>{{ version_id | default('1.0') }}</version_id>
         <title>{{ title }}</title>
         <information_model_version>1.24.0.0</information_model_version>
         <product_class>Product_Observational</product_class>
         <Modification_History>
             <Modification_Detail>
                 <modification_date>{{ modification_date }}</modification_date>
-                <version_id>1.0</version_id>
+                <version_id>{{ version_id | default('1.0') }}</version_id>
                 <description>Initial template.</description>
             </Modification_Detail>
         </Modification_History>
@@ -50,10 +50,8 @@
             <stop_date_time>2026-04-23T10:30:35.467Z</stop_date_time>
         </Time_Coordinates>
 
-        <!-- Primary Reesult Summary is optional (used in LTM)-->
         <Primary_Result_Summary>
             <purpose>Science</purpose>
-            <!-- Processing levels: Calibrated, Derived, Partially Processed, Raw, Telemetry-->
             <processing_level>{{ processing_level }}</processing_level>
             <Science_Facets>
                 <wavelength_range>Visible</wavelength_range>
@@ -71,7 +69,7 @@
             <name>Hera</name>
             <type>Mission</type>
             <Internal_Reference>
-                <lid_reference>{{mission_lid}}</lid_reference>
+                <lid_reference>{{ mission_lid }}</lid_reference>
                 <reference_type>data_to_investigation</reference_type>
             </Internal_Reference>
         </Investigation_Area>
@@ -118,11 +116,9 @@
         </Mission_Area>
 
         <Discipline_Area>
-            <!-- Image display guide (Vis, NIR1, NIR2 only: MIR has 1D spectrum, no spatial axes) -->
             {% if channel in ['Vis', 'NIR1', 'NIR2'] %}
             <disp:Display_Settings>
                 <pds:Local_Internal_Reference>
-                    <!-- Local identifier for the datacube defined in File_Area_observational-->
                     <pds:local_identifier_reference>{{ data_local_id }}</pds:local_identifier_reference>
                     <pds:local_reference_type>display_settings_to_array</pds:local_reference_type>
                 </pds:Local_Internal_Reference>
@@ -181,12 +177,16 @@
                     <pds:local_reference_type>imaging_parameters_to_image_object</pds:local_reference_type>
                 </pds:Local_Internal_Reference>
 
-                <!-- ONLY inject Calibration blocks for Level 1B and higher -->
                 {% if proclevl in ['1B', '1C'] %}
                 <img:Dark_Current_Correction>
                     <img:active_flag>true</img:active_flag>
                     <img:processing_venue>Ground</img:processing_venue>
                 </img:Dark_Current_Correction>
+                <img:Detector>
+                    <img:bad_pixel_replacement_flag>true</img:bad_pixel_replacement_flag>
+                    <!-- Optional: ID or name of the table/map used -->
+                    <!-- <img:bad_pixel_replacement_table_id>1</img:bad_pixel_replacement_table_id> -->
+                </img:Detector>
                 <img:Flat_Field_Correction>
                     <img:active_flag>true</img:active_flag>
                     <img:processing_venue>Ground</img:processing_venue>
@@ -199,8 +199,6 @@
 
                 <!-- Instrument state -->
                 <img:Instrument_State>
-                    <!-- Exposure time is valid for ALL levels (0A, 1A, 1B, 1C) -->
-                    <!-- ONLY inject Temperatures for Level 1A and higher (when DNs have been converted to Kelvin) -->
                     {% if proclevl != '0A' %}
                     <img:Device_Temperatures>
                         {%- if vis_ccdtemp not in ['UNK', 'N/A'] %}
