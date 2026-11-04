@@ -153,12 +153,13 @@ def calibrate_header(fits_path: Path, output_dir: Path, channel: str, drop_frame
         old_name_atr = parse_filename(old_name)
         old_name_atr.processing_level = '1A'
         fits_name = generate_filename(old_name_atr)
-        header['PROCLEVL'] = '1A'
-        header['FILENAME'] = fits_name
         fits_file = output_dir / fits_name
         new_hdul.writeto(fits_file, overwrite=True)
-
-
+        try:
+            new_hdul.writeto(fits_file, overwrite=True)
+            logger.info(f"New fits file created: {fits_file}")
+        except Exception as e:
+            raise PipelineError(f'Error writing a fits file.') from e
 
     return fits_file
 

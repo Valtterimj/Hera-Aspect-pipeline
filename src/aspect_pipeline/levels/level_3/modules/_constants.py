@@ -1,20 +1,12 @@
 # THIS FILE CONTAINS VARIABLES COMMON TO ALL FUNCTIONS (PATHS, CONSTANTS, ETC)
 import numpy as np
 from os import path
-from pathlib import Path
 
 # Base directory of the project (do not use a relative path if you create files from the "modules" folder)
 # _project_dir = "/home/dakorda/Python/NN"
 #_project_dir = "C:\\Users\\dkord\\python\\NN"
-
-# _project_dir = "/Users/valtterimj/Downloads/Work/Hera/Hera-Aspect-pipeline/src/aspect_pipeline/levels/level_3"
-# _project_data = "/Users/valtterimj/Downloads/Work/Hera/Hera-Aspect-pipeline/data"
-
-
-CURRENT_DIR = Path(__file__).resolve().parent
-LEVEL_3_DIR = CURRENT_DIR.parent if CURRENT_DIR.name == "modules" else CURRENT_DIR
-
-_project_dir = str(LEVEL_3_DIR)
+_project_dir = "/Users/valtterimj/Downloads/Work/Hera/Hera-Aspect-pipeline/src/aspect_pipeline/levels/level_3"
+_project_data = "/Users/valtterimj/Downloads/Work/Hera/Hera-Aspect-pipeline/data"
 
 
 # subdirs in _project_dir (useful for backup)

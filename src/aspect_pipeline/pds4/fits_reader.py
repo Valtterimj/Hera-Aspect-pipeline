@@ -119,7 +119,6 @@ def read_fits_metadata(fits_path: Path) -> dict:
 
 
     file_info = {
-        "file_name"         : path.name,
         "file_size"         : path.stat().st_size,
         "n_extensions"      : len(extensions)
     }

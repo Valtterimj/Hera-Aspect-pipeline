@@ -12,13 +12,7 @@ from scipy.stats import norm
 from aspect_pipeline.levels.level_3.modules._constants import _num_eps
 from sklearn.decomposition import PCA
 import matplotlib
-import sys
-if sys.platform == 'darwin':
-    matplotlib.use('MacOSX')
-else:
-    matplotlib.use('Agg')
-
-
+matplotlib.use('MacOSX')
 from matplotlib.patches import Patch
 import matplotlib.pyplot as plt
 from tqdm import tqdm

@@ -36,7 +36,7 @@ If the dictionary versions are updated make sure the information version matches
     <Identification_Area>
         <!--TODO: Check correct Bundle and Collection -->
         <logical_identifier>urn:nasa:pds:hera_milani:aspect:image0001</logical_identifier>
-        <version_id>{{ version_id | default('1.0') }}</version_id>
+        <version_id>1.0</version_id>
         <title>{{ title }}</title>
         <!--TODO: Update the information model version if necessary -->
         <information_model_version>1.25.0.0</information_model_version>
@@ -44,7 +44,7 @@ If the dictionary versions are updated make sure the information version matches
         <Modification_History>
             <Modification_Detail>
                 <modification_date>2026-04-23</modification_date>
-                <version_id>{{ version_id | default('1.0') }}</version_id>
+                <version_id>1.0</version_id>
                 <description>Initial template.</description>
             </Modification_Detail>
         </Modification_History>
@@ -109,15 +109,7 @@ If the dictionary versions are updated make sure the information version matches
             <!--TODO: add lid reference-->
         </Target_Identification>
 
-        <Mission_Area>
-            <psa:Mission_Information>
-                <psa:mission_phase_name>ASPECT_Acquisition</psa:mission_phase_name>
-                <psa:mission_phase_identifier>A2Acq1</psa:mission_phase_identifier>
-            </psa:Mission_Information>
-            <hera:Spacecraft_Status>
-                <hera:milani_mission_phase>Stowed</hera:milani_mission_phase>
-            </hera:Spacecraft_Status>
-        </Mission_Area>
+        <!--TODO: add Mission_Area-->
 
         <Discipline_Area>
             <!-- Image display guide (Vis, NIR1, NIR2 only: MIR has 1D spectrum, no spatial axes) -->
@@ -219,7 +211,7 @@ If the dictionary versions are updated make sure the information version matches
                         {% if nir2_ccdtemp not in ['UNK', 'N/A']%}
                         <img:Device_Temperature>
                             <img:device_name>NIR2 CCDTEMP</img:device_name>
-                            <img:temperature_value unit="K">{{ nir2_ccdtemp }}</img:temperature_value>
+                            <img:temperature_value unit="K">{{ ni2r_ccdtemp }}</img:temperature_value>
                         </img:Device_Temperature>
                         {% endif %}
                         {% if swir_ccdtemp not in ['UNK', 'N/A']%}
@@ -267,7 +259,7 @@ If the dictionary versions are updated make sure the information version matches
                         {% if swir_fpi_temp1 not in ['UNK', 'N/A'] %}
                         <img:Device_Temperature>
                             <img:device_name>SWIR FPI TEMP1</img:device_name>
-                            <img:temperature_value unit="K">{{ swir_fpi_temp1 }}</img:temperature_value>
+                            <img:temperature_value unit="K">{{ SWIR_fpi_temp1 }}</img:temperature_value>
                         </img:Device_Temperature>
                         {% endif %}
                         {% if swir_fpi_temp2 not in ['UNK', 'N/A'] %}

@@ -11,7 +11,7 @@ from aspect_pipeline.levels.level_0.run import run_level_0
 from aspect_pipeline.levels.level_1.run import run_level_1
 from aspect_pipeline.levels.level_2.run import run_level_2
 
-from aspect_pipeline.pds4.generate_pds4_label import generate_label, copy_schemas
+from aspect_pipeline.pds4.generate_pds4_label import generate_label
 
 
 logger = logging.getLogger(__name__)
@@ -132,14 +132,12 @@ def run_generate_pds4(config_path: Path) -> None:
     if not output or output.is_dir():
             output = input / 'pds4'
 
-    schemas_source_dir = templates_dir.parent / "pds4_templates" / "schema"
-
     if input.is_file():
         logger.info(f"Generating PDS4 product for file: {input}")
         try: 
-            generate_label(input, templates_dir, output, config=cfg)
+            generate_label(input, output)
         except Exception as e:
-            raise PipelineError(f'Generating PDS4 label failed for file: {input} \nreason: {e}') 
+            raise PipelineError(f'Generating PDS4 label failed for file: {file} \nreason: {e}') 
     
     else:
         logger.info(f"Generating PDS4 products for levels: {products}")
@@ -147,12 +145,10 @@ def run_generate_pds4(config_path: Path) -> None:
         if len(missing) > 0:
             logger.warning(f"Missing fits files for the processing levels: {missing}.")
         for file in matches:
-            path = file if isinstance(file, Path) and file.is_file() else input / (file.name if hasattr(file, 'name') else file)
+            path = input / file
             try: 
-                generate_label(path, templates_dir, output, config=cfg)
+                generate_label(path, templates_dir, output)
                 logger.info(f"PDS4 product created for {file}. Saved to: {output}")
             except Exception as e:
                 raise PipelineError(f'Generating PDS4 label failed for file: {file} \nreason: {e}') 
-
-    copy_schemas(schema_source_dir=schemas_source_dir, output_pds4_dir=output)
         
