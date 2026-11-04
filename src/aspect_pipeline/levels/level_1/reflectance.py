@@ -118,7 +118,7 @@ def reflectance_calibration(
         old_name_atr = parse_filename(old_name)
         old_name_atr.processing_level = '1C'
         fits_name = generate_filename(old_name_atr)
-        primary_header = hdul[0].header
+        primary_header = new_hdul[0].header
         primary_header['FILENAME'] = fits_name
         primary_header['PROCLEVL'] = '1C'
         primary_header['FILENAME'] = fits_name

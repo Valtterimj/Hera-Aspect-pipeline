@@ -148,10 +148,10 @@ def _parse_config_dict(raw: dict[str, Any], *, config_path: Path) -> Config:
             instrument=require_any(analysis_raw, "instrument"),
             data_filtering=require_bool(analysis_raw, "data_filtering"),
             save_filtered=require_bool(analysis_raw, "save_filtered"),
-            models= require_list_of_str(analysis_raw, "models"),
-            z_thresh= require_any(analysis_raw, "z_thresh"),
-            z_factor= require_any(analysis_raw, "z_factor"),
-            init_guess= require_any(analysis_raw, "init_guess")
+            models=require_list_of_str(analysis_raw, "models"),
+            z_thresh=require_any(analysis_raw, "z_thresh"),
+            z_factor=require_any(analysis_raw, "z_factor"),
+            init_guess=require_any(analysis_raw, "init_guess"),
         )
 
         levels = require_list_of_str(pipeline_raw, "levels")
@@ -183,13 +183,20 @@ def _parse_pds4_config_dict(raw: dict[str, Any], *, config_path: Path) -> pds4_c
     channels = require_list_of_str(pds4_raw, "channels")
     validate_channels(channels)
 
+    data_raw = raw.get("data", {}) if isinstance(raw.get("data"), dict) else {}
+    major_version = str(pds4_raw.get("major_version") or data_raw.get("major_version") or "1")
+    minor_version = str(pds4_raw.get("minor_version") or data_raw.get("minor_version") or "0")
+
     try:
         pds4_cfg = pds4_config(
-            input =  validate_path(resolve_path(require_str(pds4_raw, "input"), base_dir), kind=None),
-            templates_dir= validate_path(resolve_path(require_str(pds4_raw, "templates_dir"), base_dir), kind='dir'),
-            output = resolve_optional_path(pds4_raw.get("output", ""), base_dir),
-            products = levels,
-            channels = channels
+            input=validate_path(resolve_path(require_str(pds4_raw, "input"), base_dir), kind=None),
+            templates_dir=validate_path(resolve_path(require_str(pds4_raw, "templates_dir"), base_dir), kind='dir'),
+            output=resolve_optional_path(pds4_raw.get("output", ""), base_dir),
+            products=levels,
+            channels=channels,
+            major_version=major_version,
+            minor_version=minor_version,
+            config_path=config_path,
         )
     except ValidationError as e:
         raise ConfigError(f'Creating pds4 config failed: {e}')

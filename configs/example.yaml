@@ -97,7 +97,7 @@ pipeline:
   # List of pipeline levels to execute.
   # Values: "0", "1", "1A", "1B", "1C", "2", "3", "3A", "3B", "3C"
   # E.g. ["0","1"]
-  levels: ["0", "1A", "1B", "1C", "2"]
+  levels: ["0", "1A", "1B", "1C", "2","3"]
 
   # List of channels included in processin
   # Values: "Vis", "NIR1", "NIR2", "SWIR"
@@ -142,7 +142,7 @@ pds4:
 
   # (required fpr pds4) relative to this file or absolute
   # The directory or file that contains the file(s) that the label is generated for
-  input: "../outputs"
+  input: "../outputs/0000"
 
   # (Required for pds4) Path to directory containing the templates. Relative to this config file or absolute.
   templates_dir: "../pds4_templates"
@@ -155,8 +155,8 @@ pds4:
   # Setting input to point to a directory and listing here the processing levels allows to generate multiple pds4 labels.
   # Values: "0", "1", "1A", "1B", "1C", "2B", "3", "3A", "3B", "3C"
   # E.g. ["0","1"]
-  products: ["0", "1A"]
+  products: ["0","1", "2B", "3C"]
 
   # (optional) A list of channels that the products are generated for
   # Values: "Vis", "NIR1", "NIR2", "SWIR"
-  channels: ["Vis"]
+  channels: ["Vis","NIR1","NIR2"]
