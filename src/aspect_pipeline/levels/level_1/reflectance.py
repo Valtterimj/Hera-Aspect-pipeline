@@ -1,13 +1,9 @@
 import logging
-import logging
 import numpy as np
 from pathlib import Path
 from astropy.io import fits
 from scipy.ndimage import gaussian_filter1d
 
-from aspect_pipeline.utils.utilities import parse_filename, generate_filename
-
-logger = logging.getLogger(__name__)
 from aspect_pipeline.utils.utilities import parse_filename, generate_filename
 
 logger = logging.getLogger(__name__)
@@ -41,7 +37,6 @@ def reflectance_calibration(
         solar_ssi: Path,
         fwhm_nm: float = 30.0,
     ) -> Path:
-    ) -> Path:
     """
     The image is calibrated by pixel linear transformations. The pixels represent I/f reflectance units.
 
@@ -69,7 +64,6 @@ def reflectance_calibration(
                 wl = primary_header.get(f'{channel}_WL_{frame}')
                 if wl == None:
                     logger.warning(f"No wavelength data found for {channel} frame {frame}. Skipping the frame")
-                    logger.warning(f"No wavelength data found for {channel} frame {frame}. Skipping the frame")
                 wavelengths.append(wl)
 
     except Exception as e:
@@ -85,31 +79,7 @@ def reflectance_calibration(
 
             for i, frame in enumerate(data):
                 data[i] = frame / c
-        logger.error(f'Reflectance conversion failed.')
-        return fits_path
 
-    try:
-
-        if primary_header.get('MISSPHAS') == 'SIMULATED': # For simulated data
-            au = 1.0
-            lambertRadianceAt1au = 217.0
-            c = lambertRadianceAt1au / au**2
-
-            for i, frame in enumerate(data):
-                data[i] = frame / c
-
-        else:
-
-            if sun_dist in (None, 'UNK', 'N/A'):
-                logger.warning(f'Sun distance: {sun_dist}; Using default 1AU')
-                sun_dist = float(1)
-            else:
-                sun_dist = float(sun_dist)
-            
-            if channel == 'SWIR':
-                fwhm_nm = 40.0
-            
-            wl_nm, ssi_vals = load_ssi_csv(solar_ssi)
         else:
 
             if sun_dist in (None, 'UNK', 'N/A'):
@@ -124,19 +94,7 @@ def reflectance_calibration(
             wl_nm, ssi_vals = load_ssi_csv(solar_ssi)
 
             ssi_gaussian = gaussian_convolution(ssi_vals, wl_nm, fwhm_nm)   
-            ssi_gaussian = gaussian_convolution(ssi_vals, wl_nm, fwhm_nm)   
 
-            for i, frame in enumerate(data):
-                wl = wavelengths[i]
-                if wl == None:
-                    continue
-                else:
-                    wl = float(wl)
-                ssi_index = int(np.interp(wl_nm, wl))
-                f_au = ssi_gaussian[ssi_index]
-                IF_frame = np.pi * frame * (sun_dist**2) / f_au
-            
-                data[i] = IF_frame
             for i, frame in enumerate(data):
                 wl = wavelengths[i]
                 if wl == None:
@@ -154,10 +112,6 @@ def reflectance_calibration(
         return fits_path
 
     logger.info(f'Data converted to reflectance.')
-        logger.error(f'Reflectance conversion failed: {e}')
-        return fits_path
-
-    logger.info(f'Data converted to reflectance.')
     # Create new fits file name and write
     try:
         old_name = fits_path.name
@@ -169,11 +123,6 @@ def reflectance_calibration(
         primary_header['PROCLEVL'] = '1C'
         fits_file = output_dir / fits_name
         new_hdul.writeto(fits_file, overwrite=True)
-        logger.info(f"New fits file created: {fits_file}")
-    except Exception as e:
-        logger.error(f"Error writing fits file: {e}")
-
-    return fits_file
         logger.info(f"New fits file created: {fits_file}")
     except Exception as e:
         logger.error(f"Error writing fits file: {e}")
