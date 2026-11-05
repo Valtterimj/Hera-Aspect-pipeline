@@ -283,31 +283,116 @@ def normalize_to_8bit(img: np.ndarray) -> np.ndarray:
     # Convert to 8-bit integer
     return normalized.astype(np.uint8)
 
-def find_fits_files(directory: Path, levels: list[str], channels: list[str]) -> tuple[list[Path], list[str]]:
-    """
-    Search a directory for .fits files matching given level endings.
-    """
+def find_fits_files(
+        directory: Path, levels: list[str], channels: list[str]
+) -> tuple[list[Path], list[str]]:
+    """Search a directory for .fits files matching given level endings."""
     matched_files = []
     missing_files = []
 
     for level in levels:
-        suffix = f'{level}.fits'
+        # ------------------------------------------------------------------
+        # 1. Single-channel levels (0A, 1A, 1B, 1C)
+        # ------------------------------------------------------------------
         if level in ['0A', '1A', '1B', '1C']:
             for channel in channels:
-                p = get_path(directory, channel, suffix)
+                p = None
+                try:
+                    p = get_path(
+                        directory,
+                        subunit=channel,
+                        processing_level=level,
+                        extension='fits'
+                    )
+                except FileNotFoundError:
+                    # Fallback for simulated files (e.g., AS0_*_1A.fits)
+                    ch_id = channel_to_id.get(channel)
+                    pfx = f"AS{ch_id}_" if ch_id is not None else f"{channel}_"
+                    matches = list(directory.glob(f"{pfx}*_{level}.fits"))
+                    p = matches[0] if matches else None
+
                 if p is None:
                     missing_files.append(f'({level}, {channel})')
                 else:
-                    matched_files.append(p)
-        if level in ['2B', '3A', '3B', '3C']:
+                    if p not in matched_files:
+                        matched_files.append(p)
+
+        # ------------------------------------------------------------------
+        # 2. Level 2 (Accepts either '2' or '2B')
+        # ------------------------------------------------------------------
+        elif level in ['2', '2A', '2B']:
             ch = 'all'
-            p = get_path(directory, ch, suffix)
+            p = None
+
+            # Try 2B first, then 2
+            try_levels = ['2B', '2'] if level == '2' else [level]
+            for lvl in try_levels:
+                try:
+                    p = get_path(
+                        directory,
+                        processing_level=lvl,
+                        extension='fits'
+                    )
+                    break
+                except FileNotFoundError:
+                    pass
+
+            # Fallback: glob for any ASP_*_2*.fits file
             if p is None:
-                missing_files.append(f'({level}, {channel})')
+                glob_matches = list(directory.glob(f'ASP_*_{level}*.fits')) or list(directory.glob('ASP_*_2*.fits'))
+                if glob_matches:
+                    p = glob_matches[0]
+
+            if p is None:
+                missing_files.append(f'({level}, {ch})')
             else:
-                matched_files.append(p)
-    
+                if p not in matched_files:
+                    matched_files.append(p)
+
+        # ------------------------------------------------------------------
+        # 3. Level 3 Analysis products (3A, 3B, 3C)
+        # ------------------------------------------------------------------
+        
+        elif level in ['3', '3A', '3B', '3C']:
+            ch = 'all'
+            found = False
+
+            # Search by subunit name if applicable
+            subunits = [None]
+            if level == '3C':
+                subunits = ['composition']
+                #subunits = ['composition', 'taxonomy', None]
+            elif level == '3B':
+                subunits = ['mgm', 'parameters', None]
+
+            for sub in subunits:
+                try:
+                    p = get_path(
+                        directory,
+                        processing_level=level,
+                        subunit=sub,
+                        extension='fits'
+                    )
+                    if p not in matched_files:
+                        matched_files.append(p)
+                        found = True
+                except FileNotFoundError:
+                    pass
+
+            # Fallback: glob for ASP_*_{level}*.fits (e.g. ASP_*_3C_Composition.fits)
+            if not found:
+                glob_matches = list(directory.glob(f'ASP_*_{level}*.fits'))
+                if glob_matches:
+                    for f in glob_matches:
+                        if f not in matched_files:
+                            matched_files.append(f)
+                    found = True
+
+            if not found:
+                missing_files.append(f'({level}, {ch})')
+
     return matched_files, missing_files
+
 
 def convert_to_zulu_time(time: str, offset: str | None = None) -> str:
     """
@@ -351,15 +436,16 @@ def convert_processing_levels(level: str) -> str:
     """
     Converts pipeline processing levels to PDS4 format
     0A -> Raw
-    1A -> Partially Processed
-    1A-extra -> Partially Processed
-    1B -> Calibrated
+    1A -> raw
+    1B -> Partially Processed
     1C -> Calibrated
     """
     match level:
         case '0A' : return 'Raw'
-        case '1A' | '1A-extra': return 'Partially Processed'
-        case '1B' | '1C' : return 'Calibrated'
+        case '1A' | '1A-extra' : return 'Raw'
+        case '1B' : return 'Partially Processed'
+        case '1C' : return 'Calibrated'
+        case '2' | '2A' | '2B' | '3C': return 'Derived'
         case _ : raise ValueError(f'Processing level should be in (0A, 1A, 1A-extra, 1B, 1C) got: {level}')
 
 def get_wavelengths_by_channel(fits_file: Path) -> dict[str, list[int]]:
