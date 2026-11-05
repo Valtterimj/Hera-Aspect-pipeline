@@ -125,14 +125,13 @@
         </Target_Identification>
 
         <Mission_Area>
-            <!-- wait for MAX table -->
             <psa:Mission_Information>
-                <psa:mission_phase_name>{{ mission_phase_name | default('ASPECT_Acquisition') }}</psa:mission_phase_name>
-                <psa:mission_phase_identifier>{{ mission_phase_identifier | default('A2Acq1') }}</psa:mission_phase_identifier>
+                <psa:mission_phase_name>{{ hera_phase_name }}</psa:mission_phase_name>
+                <psa:mission_phase_identifier>{{ hera_phase_id }}</psa:mission_phase_identifier>
             </psa:Mission_Information>
-            <hera:Spacecraft_Status>
-                <hera:milani_mission_phase>{{ milani_mission_phase | default('Stowed') }}</hera:milani_mission_phase>
-            </hera:Spacecraft_Status>
+            <hera:Milani_Status>
+                <hera:milani_mission_phase>{{ milani_phase }}</hera:milani_mission_phase>
+            </hera:Milani_Status>
         </Mission_Area>
 
         <Discipline_Area>

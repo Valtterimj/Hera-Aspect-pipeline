@@ -46,7 +46,7 @@
     <Observation_Area>
         <Time_Coordinates>
             <start_date_time>{{ start_date_time }}</start_date_time>
-            <stop_date_time>2026-04-23T10:30:35.467Z</stop_date_time>
+            <stop_date_time>{{ stop_date_time | default(start_date_time) }}</stop_date_time>
         </Time_Coordinates>
 
         <Primary_Result_Summary>
@@ -106,12 +106,12 @@
 
         <Mission_Area>
             <psa:Mission_Information>
-                <psa:mission_phase_name>ASPECT_Acquisition</psa:mission_phase_name>
-                <psa:mission_phase_identifier>A2Acq1</psa:mission_phase_identifier>
+                <psa:mission_phase_name>{{ hera_phase_name }}</psa:mission_phase_name>
+                <psa:mission_phase_identifier>{{ hera_phase_id }}</psa:mission_phase_identifier>
             </psa:Mission_Information>
-            <hera:Spacecraft_Status>
-                <hera:milani_mission_phase>Stowed</hera:milani_mission_phase>
-            </hera:Spacecraft_Status>
+            <hera:Milani_Status>
+                <hera:milani_mission_phase>{{ milani_phase }}</hera:milani_mission_phase>
+            </hera:Milani_Status>
         </Mission_Area>
 
         <Discipline_Area>

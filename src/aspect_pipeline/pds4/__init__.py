@@ -20,5 +20,11 @@ __all__ = [
     "find_level1_labels_in_pds4",
     "find_level2_label_in_pds4",
     "CHANNEL_DISPLAY_MAP",
+    "HERA_MISSION_PHASES",
+    "HERA_MISSION_PHASES_BY_ID",
+    "MILANI_MISSION_PHASES",
+    "MILANI_MISSION_PHASES_BY_ID",
+    "get_hera_mission_phase",
+    "get_milani_mission_phase",
+    "get_mission_phases",
 ]
-

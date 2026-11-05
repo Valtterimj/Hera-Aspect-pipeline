@@ -2,7 +2,7 @@ import hashlib
 import logging
 import re
 import shutil
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +27,198 @@ CHANNEL_DISPLAY_MAP = {
     "swir": "SWIR",
 }
 
+# Hera Mission Phases
+# Columns: Name, Abbreviation, Start Date, End Date
+HERA_MISSION_PHASES: list[dict[str, str]] = [
+    {
+        "name": "Cruise 1",
+        "abbreviation": "CR1",
+        "start_date": "2024-10-07",
+        "end_date": "2025-03-12",
+    },
+    {
+        "name": "Mars Fly-By",
+        "abbreviation": "MFB",
+        "start_date": "2025-03-12",
+        "end_date": "2025-03-20",
+    },
+    {
+        "name": "Cruise 2",
+        "abbreviation": "CR2",
+        "start_date": "2025-03-20",
+        "end_date": "2026-10-14",
+    },
+    {
+        "name": "Binary Rendezvous Manoeuvres",
+        "abbreviation": "BRM",
+        "start_date": "2026-10-14",
+        "end_date": "2026-10-24",
+    },
+    {
+        "name": "Transition to Didymos / Transition Manoeuvres",
+        "abbreviation": "TRM",
+        "start_date": "2026-10-24",
+        "end_date": "2026-11-03",
+    },
+    {
+        "name": "Early Characterisation Phase",
+        "abbreviation": "ECP",
+        "start_date": "2026-11-03",
+        "end_date": "2026-12-01",
+    },
+    {
+        "name": "Detailed Characterisation Phase",
+        "abbreviation": "DCP",
+        "start_date": "2026-12-01",
+        "end_date": "2027-01-12",
+    },
+    {
+        "name": "Payload Deposition Phase",
+        "abbreviation": "PDP",
+        "start_date": "2027-01-12",
+        "end_date": "2027-02-05",
+    },
+    {
+        "name": "Close Operations",
+        "abbreviation": "COP",
+        "start_date": "2027-02-05",
+        "end_date": "2027-04-30",
+    },
+]
+
+# Milani Mission Phases
+# Columns: Name, Abbreviation, Start Date, End Date
+MILANI_MISSION_PHASES: list[dict[str, str]] = [
+    {
+        "name": "Commissioning Phase",
+        "abbreviation": "COMP",
+        "start_date": "2027-01-30",
+        "end_date": "2027-02-03",
+    },
+    {
+        "name": "Insertion Phase",
+        "abbreviation": "INSP",
+        "start_date": "2027-02-03",
+        "end_date": "2027-02-10",
+    },
+    {
+        "name": "Far Range Operation Phase",
+        "abbreviation": "FRP",
+        "start_date": "2027-02-10",
+        "end_date": "2027-04-08",
+    },
+    {
+        "name": "Close Range Operation Phase",
+        "abbreviation": "CRP",
+        "start_date": "2027-04-08",
+        "end_date": "2027-04-17",
+    },
+    {
+        "name": "Experimental Phase",
+        "abbreviation": "EXP",
+        "start_date": "2027-04-17",
+        "end_date": "2027-04-28",
+    },
+    {
+        "name": "Disposal Phase",
+        "abbreviation": "DIP",
+        "start_date": "2027-04-28",
+        "end_date": "2027-04-28",
+    },
+]
+
+HERA_MISSION_PHASES_BY_ID: dict[str, dict[str, str]] = {
+    p["abbreviation"]: p for p in HERA_MISSION_PHASES
+}
+
+MILANI_MISSION_PHASES_BY_ID: dict[str, dict[str, str]] = {
+    p["abbreviation"]: p for p in MILANI_MISSION_PHASES
+}
+
+
+def parse_date(target_time: datetime | date | str | None) -> date:
+    """
+    Parse a given timestamp into a date object.
+    Defaults to current UTC date if target_time is None.
+    """
+    if target_time is None:
+        return datetime.now(timezone.utc).date()
+    if isinstance(target_time, datetime):
+        return target_time.date()
+    if isinstance(target_time, date):
+        return target_time
+    if isinstance(target_time, str):
+        cleaned = target_time.strip().replace("Z", "")
+        try:
+            return datetime.fromisoformat(cleaned).date()
+        except ValueError:
+            date_part = cleaned.split("T")[0].split(" ")[0]
+            return datetime.strptime(date_part, "%Y-%m-%d").date()
+    return datetime.now(timezone.utc).date()
+
+
+def get_hera_mission_phase(target_date: date) -> tuple[str, str]:
+    """
+    Determine the Hera mission phase (name, abbreviation) for a given date.
+    """
+    first_start = date.fromisoformat(HERA_MISSION_PHASES[0]["start_date"])
+    if target_date < first_start:
+        return "Pre-Launch", "PRE"
+
+    for i, phase in enumerate(HERA_MISSION_PHASES):
+        start = date.fromisoformat(phase["start_date"])
+        end = date.fromisoformat(phase["end_date"])
+        is_last = i == len(HERA_MISSION_PHASES) - 1
+        if (start <= target_date <= end) if is_last else (start <= target_date < end):
+            return phase["name"], phase["abbreviation"]
+
+    return "Post-Mission", "POST"
+
+
+def get_milani_mission_phase(target_date: date) -> tuple[str, str]:
+    """
+    Determine the Milani mission phase (name, abbreviation) for a given date.
+    Before commissioning (2027-01-30), Milani is stowed on board Hera ('Stowed').
+    After disposal (2027-04-28), returns ('Disposed', 'DISP').
+    """
+    first_start = date.fromisoformat(MILANI_MISSION_PHASES[0]["start_date"])
+    if target_date < first_start:
+        return "Stowed", "STOWED"
+
+    for i, phase in enumerate(MILANI_MISSION_PHASES):
+        start = date.fromisoformat(phase["start_date"])
+        end = date.fromisoformat(phase["end_date"])
+        is_last = i == len(MILANI_MISSION_PHASES) - 1
+        if (start <= target_date <= end) if is_last else (start <= target_date < end):
+            return phase["name"], phase["abbreviation"]
+
+    return "Disposed", "DISP"
+
+
+def get_mission_phases(
+    target_time: datetime | date | str | None = None,
+) -> dict[str, str]:
+    """
+    Get mission phase variables for PDS4 templates based on the current time (or an optional specified time).
+
+    Returns a dict with:
+        - hera_phase_name: Full name of the Hera mission phase (e.g. 'Early Characterisation Phase')
+        - hera_phase_id: Abbreviation/identifier of the Hera mission phase (e.g. 'ECP')
+        - milani_phase: Milani mission phase ('Stowed' before commissioning, or phase name)
+        - milani_phase_name: Full name of the Milani mission phase
+        - milani_phase_id: Abbreviation of the Milani mission phase
+    """
+    d = parse_date(target_time)
+    hera_name, hera_id = get_hera_mission_phase(d)
+    milani_name, milani_id = get_milani_mission_phase(d)
+
+    return {
+        "hera_phase_name": hera_name,
+        "hera_phase_id": hera_id,
+        "milani_phase": milani_name,
+        "milani_phase_name": milani_name,
+        "milani_phase_id": milani_id,
+    }
 
 def copy_schemas(schema_source_dir: Path, output_pds4_dir: Path) -> None:
     """
@@ -383,6 +575,14 @@ def build_base_metadata(
     metadata["modification_date"] = datetime.now(timezone.utc).strftime(
         "%Y-%m-%dT%H:%M:%SZ"
     )
+
+    # Mission phases based on current time
+    phases = get_mission_phases(datetime.now(timezone.utc))
+    metadata["hera_phase_name"] = phases["hera_phase_name"]
+    metadata["hera_phase_id"] = phases["hera_phase_id"]
+    metadata["milani_phase"] = phases["milani_phase"]
+    metadata["milani_phase_name"] = phases["milani_phase_name"]
+    metadata["milani_phase_id"] = phases["milani_phase_id"]
 
     metadata["mission_lid"] = "urn:esa:psa:mission.hera"
     metadata["aspect_lid"] = "urn:esa:psa:milani.aspect"
