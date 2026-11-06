@@ -19,7 +19,7 @@
 run:
 
   # (Required) Path to input data. Relative to this config file or absolute.
-  input_dir: "../data/simulated/2027-03-23-0600"
+  input_dir: "../data/simulated/didy-boulders-didysmoothed-10km"
   # input_dir: "../outputs/simulated"
 
   # (Optional) Root output directory for generated products. Absolute or empty. If left empty the files are saved to outputs/<missphase>.
@@ -75,7 +75,7 @@ data:
   missphas: "SIMULATED"
 
   # Acquisition ID
-  acq_id: "simv2"
+  acq_id: "0001"
 
   "major_version": "1"
 
@@ -97,7 +97,7 @@ pipeline:
   # List of pipeline levels to execute.
   # Values: "0", "1", "1A", "1B", "1C", "2", "3", "3A", "3B", "3C"
   # E.g. ["0","1"]
-  levels: ["0", "1A", "1B", "1C", "2","3"]
+  levels: ["0", "1A", "1B", "1C", "2", "3A", "3C"]
 
   # List of channels included in processin
   # Values: "Vis", "NIR1", "NIR2", "SWIR"
@@ -122,7 +122,7 @@ analysis:
   save_filtered: True
 
   # list[str] -> which analysis are applied C = Composition, T = Taxonomy, M = MGM
-  models: ['C']
+  models: ['C', 'T']
 
   # int -> threshold for removing outliers
   # increase -> less sensitive to outliers ((deriv - mu) / sigma) > z_threshold)

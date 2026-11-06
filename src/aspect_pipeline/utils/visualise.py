@@ -21,7 +21,16 @@ _BIN_FILENAME_RE = re.compile(r"dc_(\d+)_exp_")
 
 
 def _print_stats(frame: np.ndarray) -> None:
-    print(f"min={frame.min()} max={frame.max()} mean={frame.mean()}")
+    """Print min/max/mean over the non-NaN values of a frame, plus its NaN count."""
+    if frame.size == 0:
+        print("empty frame")
+        return
+    n_nan = int(np.count_nonzero(np.isnan(frame))) if np.issubdtype(frame.dtype, np.floating) else 0
+    nan_info = f"nan={n_nan}/{frame.size} ({n_nan / frame.size:.1%})"
+    if n_nan == frame.size:
+        print(f"all values NaN {nan_info}")
+        return
+    print(f"min={np.nanmin(frame)} max={np.nanmax(frame)} mean={np.nanmean(frame)} {nan_info}")
 
 
 def _browse_cube(path: Path, data: np.ndarray) -> None:
