@@ -68,7 +68,6 @@ def run_level_1b(fits_file: Path, output_dir: Path, calibration: CalibConfig, ch
                 logger.info('1A-extra calibration file created: {extra_fits}')
 
 
-            radiance_dir = calibration_dir / 'RADIANCE'
             radiance_file = get_calibration_path(cal_dir=calibration_dir, sub_dir='RADIANCE', channel=channel, suffix=f'{order}.txt')
             hdul = radiometric_calibration(hdul, radiance_file=radiance_file)
 
