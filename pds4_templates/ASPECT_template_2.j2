@@ -74,25 +74,23 @@
         </Investigation_Area>
 
         <Observing_System>
-            <name>{{ os_name }}</name>
             <Observing_System_Component>
-                <name>ASPECT</name>
+                <name>Milani</name>
                 <type>Host</type>
                 <Internal_Reference>
-                    <lid_reference>{{ aspect_lid }}</lid_reference>
+                    <lid_reference>urn:esa:psa:context:instrument_host:spacecraft.milani</lid_reference>
                     <reference_type>is_instrument_host</reference_type>
                 </Internal_Reference>
             </Observing_System_Component>
-            {% for ch in channels %}
             <Observing_System_Component>
-                <name>{{ ch.name }}</name>
+                <name>ASPECT</name>
                 <type>Instrument</type>
+                <description>ASPECT Hyperspectral Imager</description>
                 <Internal_Reference>
-                    <lid_reference>{{ ch.lid }}</lid_reference>
+                    <lid_reference>urn:esa:psa:context:instrument:milani.aspect</lid_reference>
                     <reference_type>is_instrument</reference_type>
                 </Internal_Reference>
             </Observing_System_Component>
-            {% endfor %}
         </Observing_System>
 
         <Target_Identification>

@@ -102,22 +102,6 @@ def generate_level3_label(
     print("lv3 references lv2:", lv2_lidvid)
     metadata["derived_to_source_id"] = lv2_lidvid
 
-    # Dynamic instruments for Level 3
-    channel_names = [CHANNEL_DISPLAY_MAP[c] for c in found_channels]
-    channel = ",".join(channel_names)
-    channel_lower = channel.lower()
-    metadata["channels"] = [
-        {
-            "name": CHANNEL_DISPLAY_MAP[c],
-            "lid": f"urn:nasa:pds:context:instrument:aspect.{c}",
-        }
-        for c in found_channels
-    ]
-    metadata["os_name"] = f"ASPECT_{'_'.join(channel_names)}"
-    metadata["instrument_lid"] = (
-        f"urn:nasa:pds:context:instrument:aspect.{channel.lower()}"
-    )
-
     print(template)
 
     instr = "asp"

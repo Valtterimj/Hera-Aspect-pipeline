@@ -101,22 +101,6 @@ def generate_level2_label(
                 "reference_type": "data_to_calibrated_source_product",
             })
 
-    # Dynamic instruments for Level 2
-    channel_names = [CHANNEL_DISPLAY_MAP[c] for c in found_channels]
-    channel = ",".join(channel_names)
-    channel_lower = channel.lower()
-    metadata["channels"] = [
-        {
-            "name": CHANNEL_DISPLAY_MAP[c],
-            "lid": f"urn:nasa:pds:context:instrument:aspect.{c}",
-        }
-        for c in found_channels
-    ]
-    metadata["os_name"] = f"ASPECT_{'_'.join(channel_names)}"
-    metadata["instrument_lid"] = (
-        f"urn:nasa:pds:context:instrument:aspect.{channel.lower()}"
-    )
-
     print(template)
 
     instr = "asp"

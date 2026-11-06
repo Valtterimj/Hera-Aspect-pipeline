@@ -78,41 +78,23 @@
         </Investigation_Area>
 
         <Observing_System>
-            <name>{{ os_name | default('ASPECT') }}</name>
             <Observing_System_Component>
-                <name>ASPECT</name>
+                <name>Milani</name>
                 <type>Host</type>
                 <Internal_Reference>
-                    <lid_reference>{{ aspect_lid }}</lid_reference>
+                    <lid_reference>urn:esa:psa:context:instrument_host:spacecraft.milani</lid_reference>
                     <reference_type>is_instrument_host</reference_type>
                 </Internal_Reference>
             </Observing_System_Component>
-            {% if channels is defined and channels %}
-                {% for ch in channels %}
-                <Observing_System_Component>
-                    <name>{{ ch.channel_name | default(ch.name) }}</name>
-                    <type>Instrument</type>
-                    <Internal_Reference>
-                        <!--TODO: check the correct lid reference -->
-                        <lid_reference>{{ ch.instrument_lid | default(ch.lid) }}</lid_reference>
-                        <reference_type>is_instrument</reference_type>
-                    </Internal_Reference>
-                </Observing_System_Component>
-                {% endfor %}
-            {% else %}
-                {% for ch in channel.split(',') %}
-                {% set ch_clean = ch.strip() %}
-                <Observing_System_Component>
-                    <name>{{ ch_clean }}</name>
-                    <type>Instrument</type>
-                    <Internal_Reference>
-                        <!--TODO: check the correct lid reference -->
-                        <lid_reference>urn:nasa:pds:context:instrument:aspect.{{ ch_clean.lower() }}</lid_reference>
-                        <reference_type>is_instrument</reference_type>
-                    </Internal_Reference>
-                </Observing_System_Component>
-                {% endfor %}
-            {% endif %}
+            <Observing_System_Component>
+                <name>ASPECT</name>
+                <type>Instrument</type>
+                <description>ASPECT Hyperspectral Imager</description>
+                <Internal_Reference>
+                    <lid_reference>urn:esa:psa:context:instrument:milani.aspect</lid_reference>
+                    <reference_type>is_instrument</reference_type>
+                </Internal_Reference>
+            </Observing_System_Component>
         </Observing_System>
 
         <Target_Identification>

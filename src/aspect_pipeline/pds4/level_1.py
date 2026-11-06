@@ -90,14 +90,6 @@ def generate_level1_label(
         wl_range = "Infrared"
     metadata["wl_range"] = wl_range
 
-    observing_system_name = (
-        metadata.get("os_name") or f'ASPECT_{channel.replace(",", "_")}'
-    )
-    metadata["os_name"] = observing_system_name
-    metadata["instrument_lid"] = (
-        f"urn:nasa:pds:context:instrument:aspect.{channel_lower}"
-    )
-
     metadata["radiometric_type"] = (
         "Radiance Factor" if proclevl == "1C" else "Spectral Radiance"
     )
