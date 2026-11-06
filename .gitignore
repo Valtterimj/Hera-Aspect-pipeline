@@ -19,3 +19,14 @@ outputs/
 # claude
 .claude/
 CLAUDE.md
+
+#pds4
+jasper-4.2.9/
+configs/
+decompress.exe
+decompress.obj
+jasper.dll
+unistd.h
+fitschecker.py
+fitscheckerl.py
+pds4_dev/
