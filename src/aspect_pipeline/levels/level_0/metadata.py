@@ -39,7 +39,7 @@ def collect_metadata(input: InputLayout, spice: Path, cfg: DataConfig, channel: 
         original_filename = list_of_frames[0]
 
     acq_metadata = collect_config_metadata(telemetry_path=tel_path,config_path=conf_path, data=cfg, orig_file=original_filename)
-    utc_ob = acq_metadata.DATE_OBS
+    utc_ob = acq_metadata.DATE_OBS.value
     spice_metadata = collect_spice_metadata(mk=spice, target='DIDYMOS', solar_d=solar_d, utc_ob=utc_ob)
     instrument_metadata = collect_instrument_metadata(telemetry_path=tel_path, channel=channel)
     instrument_specific_metadata = collect_instrument_specific_metadata(config_path=conf_path, acq_path=acq_dir, channel=channel)

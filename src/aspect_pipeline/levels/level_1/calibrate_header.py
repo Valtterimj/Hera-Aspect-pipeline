@@ -148,16 +148,18 @@ def calibrate_header(fits_path: Path, output_dir: Path, channel: str, drop_frame
 
             logger.info(f"Dropped first frame ({dropped_frame}) from {channel} data cube and header.")
 
-        # Create new fits file name and write
-        old_name = fits_path.name
-        old_name_atr = parse_filename(old_name)
-        old_name_atr.processing_level = '1A'
-        fits_name = generate_filename(old_name_atr)
-        header['PROCLEVL'] = '1A'
-        header['FILENAME'] = fits_name
-        fits_file = output_dir / fits_name
-        new_hdul.writeto(fits_file, overwrite=True)
-
+        try:
+            # Create new fits file name and write
+            old_name = fits_path.name
+            old_name_atr = parse_filename(old_name)
+            old_name_atr.processing_level = '1A'
+            fits_name = generate_filename(old_name_atr)
+            header['PROCLEVL'] = '1A'
+            header['FILENAME'] = fits_name
+            fits_file = output_dir / fits_name
+            new_hdul.writeto(fits_file, overwrite=True)
+        except Exception as e:
+                logger.error(f"Error writing fits file: {e}")
 
 
     return fits_file

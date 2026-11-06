@@ -50,12 +50,12 @@ def reflectance_calibration(
     """
     try:
         with fits.open(fits_path) as hdul:
+            # Initialise the HDUL as copy of the file
             new_hdul = fits.HDUList([hdu.copy() for hdu in hdul])
             primary_hdu = new_hdul[0]
-            primary_header = primary_hdu.header.copy()
-            data = primary_hdu.data.copy()
-            new_hdul[0].header = primary_header
-            new_hdul[0].data = data
+            primary_header = primary_hdu.header
+            data = primary_hdu.data
+
             channel = primary_header.get('CHANNELS')
             sun_dist = primary_header.get('SOLAR_D')
             frames = primary_header.get(f'{channel}_FRAMES').split(',')
@@ -118,9 +118,7 @@ def reflectance_calibration(
         old_name_atr = parse_filename(old_name)
         old_name_atr.processing_level = '1C'
         fits_name = generate_filename(old_name_atr)
-        primary_header = new_hdul[0].header
-        primary_header['FILENAME'] = fits_name
-        primary_header['PROCLEVL'] = '1C'
+
         primary_header['FILENAME'] = fits_name
         primary_header['PROCLEVL'] = '1C'
         fits_file = output_dir / fits_name

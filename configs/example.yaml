@@ -26,8 +26,8 @@ run:
   output_dir: "../outputs/"
 
   # (Optional) SPICE meta kernel path. Should be absolute. Optional only from the pipeline perspective.
-  # spice_dir: "/Users/valtterimj/Downloads/Work/Aalto/Hera/hera_spice/kernels/mk/hera_plan.tm"
-  spice_dir: ""
+  # spice_dir: "/Users/valtterimj/Downloads/Work/Hera/hera_spice/kernels/mk/hera_plan.tm"
+  spice_dir: "/Users/valtterimj/Downloads/Work/Hera/hera_spice/kernels/mk/hera_plan.tm"
 
   # Overwrite existing outputs if they already exists
   overwrite: true
@@ -75,7 +75,7 @@ data:
   missphas: "SIMULATED"
 
   # Acquisition ID
-  acq_id: "0000"
+  acq_id: "0001"
 
   "major_version": "1"
 
@@ -97,7 +97,7 @@ pipeline:
   # List of pipeline levels to execute.
   # Values: "0", "1", "1A", "1B", "1C", "2", "3", "3A", "3B", "3C"
   # E.g. ["0","1"]
-  levels: ["0", "1A", "1B", "1C", "2","3"]
+  levels: ["0", "1A", "1B", "1C", "2", "3A", "3C"]
 
   # List of channels included in processin
   # Values: "Vis", "NIR1", "NIR2", "SWIR"
@@ -122,7 +122,7 @@ analysis:
   save_filtered: True
 
   # list[str] -> which analysis are applied C = Composition, T = Taxonomy, M = MGM
-  models: ['C']
+  models: ['C', 'T']
 
   # int -> threshold for removing outliers
   # increase -> less sensitive to outliers ((deriv - mu) / sigma) > z_threshold)
