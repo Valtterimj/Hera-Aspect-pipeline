@@ -1,11 +1,14 @@
 import re
 from pathlib import Path
 
+import cv2
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.patches import Patch
 from astropy.io import fits
 
-from aspect_pipeline.utils.utilities import id_to_channel
+from aspect_pipeline.utils.utilities import id_to_channel, get_frame, normalize_to_8bit
+from aspect_pipeline.levels.level_2.transformation_matrix import estimate_matrix
 
 BIN_FRAME_SHAPE = {
     "Vis": (1024, 1024),
@@ -117,4 +120,62 @@ def visualise_bin_file(path: Path) -> None:
     plt.imshow(frame, cmap="gray")
     plt.colorbar()
     plt.title(path.name)
+    plt.show()
+
+
+def visualise_alignment(vis: Path, nir: Path) -> None:
+    """
+    Debug the level 2 Vis-NIR alignment: show each estimation step, then a red/green overlay.
+
+    The Vis frame is warped onto the NIR grid exactly as in level 2 merge_channels
+    (float32, INTER_LINEAR, dsize (640, 512)). In the overlay NIR is red, warped Vis is
+    green, and where both are bright the colours add up to yellow.
+
+    Args:
+        vis: path to the Vis FITS file (frame 0 is used).
+        nir: path to the NIR1 or NIR2 FITS file (frame 0 is used).
+
+    Raises:
+        ValueError: if a FITS primary HDU has no data, or no homography could be estimated.
+        IndexError: if a file has no frame 0.
+    """
+    vis_frame = get_frame(vis, 0)
+    nir_frame = get_frame(nir, 0)
+
+    matrix = estimate_matrix(vis=vis_frame, nir=nir_frame, filter=True, verbose=True)
+    if matrix is None:
+        raise ValueError(f"No homography could be estimated between {vis} and {nir}")
+
+    # Warp Vis onto the NIR grid with the same settings as level 2 merge_channels
+    vis_le = np.ascontiguousarray(vis_frame.astype("<f4"))
+    warped_vis = cv2.warpPerspective(vis_le, matrix, (640, 512), flags=cv2.INTER_LINEAR)
+
+    nir_8bit = normalize_to_8bit(nir_frame)
+    vis_8bit = normalize_to_8bit(warped_vis)
+    if nir_8bit.shape != vis_8bit.shape:
+        raise ValueError(f"Warped Vis shape {vis_8bit.shape} does not match NIR shape {nir_8bit.shape}")
+
+    overlay = np.zeros((*nir_8bit.shape, 3), dtype=np.uint8)
+    overlay[..., 0] = nir_8bit  # red: NIR
+    overlay[..., 1] = vis_8bit  # green: warped Vis
+
+    fig, axes = plt.subplots(1, 3, figsize=(18, 6))
+    axes[0].imshow(nir_8bit, cmap="gray")
+    axes[0].set_title(f"NIR ({Path(nir).name})")
+    axes[1].imshow(vis_8bit, cmap="gray")
+    axes[1].set_title(f"Warped Vis ({Path(vis).name})")
+    axes[2].imshow(overlay)
+    axes[2].set_title("Overlay")
+    axes[2].legend(
+        handles=[
+            Patch(color="red", label="NIR only"),
+            Patch(color="lime", label="Vis only"),
+            Patch(color="yellow", label="Both"),
+        ],
+        loc="upper right",
+    )
+    for ax in axes:
+        ax.axis("off")
+    fig.suptitle("Vis-NIR alignment")
+    fig.tight_layout()
     plt.show()

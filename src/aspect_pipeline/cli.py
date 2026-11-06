@@ -6,7 +6,6 @@ from aspect_pipeline.utils.errors import PipelineError
 
 from aspect_pipeline.main import hello
 from aspect_pipeline.orchestrator import run_pipeline, run_generate_pds4
-from aspect_pipeline.utils.visualise import visualise_fits_file, visualise_bin_file
 from aspect_pipeline.utils.test_set import make_test_set
 from aspect_pipeline.utils.compare import (
     compare_exact,
@@ -20,7 +19,7 @@ def main() -> None:
     Command line interface for ASPECT pipeline.
     Commands:
     - run: runs the pipeline according to the configurations
-    - view: visualise a FITS file
+    - view: visualise a FITS or bin file, or the Vis-NIR alignment of two FITS files
     - pds4: generate a PDS4 product according to the configurations
     - make-test-set: generate a synthetic raw/calibration test set
     - compare-exact: byte-by-byte comparison of two json, bin or fits files
@@ -67,7 +66,7 @@ def main() -> None:
         help="Instrument models to use: 'Vis-NIR1-NIR2' (default) or 'NIR1-NIR2'"
     )
 
-    view = sub.add_parser("view", help="Visualise a fits or bin file", parents=[log_options])
+    view = sub.add_parser("view", help="Visualise a fits or bin file, or Vis-NIR alignment", parents=[log_options])
     view_group = view.add_mutually_exclusive_group(required=True)
     view_group.add_argument(
         "--fits",
@@ -78,6 +77,13 @@ def main() -> None:
         "--bin",
         default=None,
         help="Path to the .bin file to visualise"
+    )
+    view_group.add_argument(
+        "--alignment",
+        nargs=2,
+        metavar=("VIS", "NIR"),
+        default=None,
+        help="Paths to a Vis and a NIR FITS file; shows each alignment step and the warped overlay"
     )
 
     make_test = sub.add_parser("make-test-set", help="Generate a synthetic raw/calibration test set", parents=[log_options])
@@ -135,10 +141,19 @@ def main() -> None:
             else:
                 hello()
         if args.cdm == "view":
+            # Imported here so other commands don't load matplotlib
+            from aspect_pipeline.utils.visualise import (
+                visualise_fits_file,
+                visualise_bin_file,
+                visualise_alignment,
+            )
             if args.fits:
                 visualise_fits_file(Path(args.fits).expanduser())
             elif args.bin:
                 visualise_bin_file(Path(args.bin).expanduser())
+            elif args.alignment:
+                vis_path, nir_path = args.alignment
+                visualise_alignment(Path(vis_path).expanduser(), Path(nir_path).expanduser())
         if args.cdm == "make-test-set":
             make_test_set(Path(args.input).expanduser(), Path(args.calibration).expanduser())
         if args.cdm == "compare-exact":

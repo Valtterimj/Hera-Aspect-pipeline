@@ -122,7 +122,6 @@ def merge_fits_files(input_dir: str | Path, channels: list[str], output_dir: str
 
     if len(valid) <= 1:
         logger.error(f"A single channel cannot be combined.\nfiles: {channel_files}")
-        #TODO: return still 2B or just the 1C?
         raise PipelineError("Level 2 needs more than one channel")
 
     present = {name for name, _ in valid}

@@ -5,7 +5,7 @@ from pathlib import Path
 
 from aspect_pipeline.pds4.fits_reader import read_fits_metadata
 from aspect_pipeline.utils.errors import PipelineError
-from aspect_pipeline.utils.utilities import convert_to_zulu_time, convert_processing_levels, get_wavelengths
+from aspect_pipeline.utils.utilities import convert_to_zulu_time, convert_processing_levels, get_wavelengths_by_channel
 
 
 def generate_label(fits_path: Path, templates_dir: Path, output_path: Path) -> None:

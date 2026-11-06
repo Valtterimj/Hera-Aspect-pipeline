@@ -19,15 +19,15 @@
 run:
 
   # (Required) Path to input data. Relative to this config file or absolute.
-  input_dir: "../data/simulated/didy-boulders-didysmoothed-10km"
+  input_dir: "../data/simulated/2027-03-23-0600"
   # input_dir: "../outputs/simulated"
 
   # (Optional) Root output directory for generated products. Absolute or empty. If left empty the files are saved to outputs/<missphase>.
   output_dir: "../outputs/"
 
   # (Optional) SPICE meta kernel path. Should be absolute. Optional only from the pipeline perspective.
-  # spice_dir: "/Users/valtterimj/Downloads/Work/Aalto/Hera/hera_spice/kernels/mk/hera_plan.tm"
-  spice_dir: ""
+  # spice_dir: "/Users/valtterimj/Downloads/Work/Hera/hera_spice/kernels/mk/hera_plan.tm"
+  spice_dir: "/Users/valtterimj/Downloads/Work/Hera/hera_spice/kernels/mk/hera_plan.tm"
 
   # Overwrite existing outputs if they already exists
   overwrite: true
@@ -75,7 +75,7 @@ data:
   missphas: "SIMULATED"
 
   # Acquisition ID
-  acq_id: "0000"
+  acq_id: "simv2"
 
   "major_version": "1"
 
@@ -97,7 +97,7 @@ pipeline:
   # List of pipeline levels to execute.
   # Values: "0", "1", "1A", "1B", "1C", "2", "3", "3A", "3B", "3C"
   # E.g. ["0","1"]
-  levels: ["0", "1A", "1B", "1C", "2"]
+  levels: ["0"]
 
   # List of channels included in processin
   # Values: "Vis", "NIR1", "NIR2", "SWIR"
