@@ -568,8 +568,13 @@ def build_base_metadata(
     metadata["major_version"] = major_ver
     metadata["minor_version"] = minor_ver
 
-    if metadata.get("start_date_time"):
-        metadata["start_date_time"] = convert_to_zulu_time(metadata["start_date_time"])
+    raw_start = metadata.get("start_date_time")
+    raw_stop = metadata.get("stop_date_time") or raw_start
+    if raw_start:
+        metadata["start_date_time"] = convert_to_zulu_time(raw_start.rstrip("Z"))
+    if raw_stop:
+        metadata["stop_date_time"] = convert_to_zulu_time(raw_stop.rstrip("Z"))
+
     metadata["processing_level"] = convert_processing_levels(proclevl)
     metadata["reference_list"] = proclevl != "0A"
     metadata["modification_date"] = datetime.now(timezone.utc).strftime(
@@ -587,12 +592,23 @@ def build_base_metadata(
     metadata["mission_lid"] = "urn:esa:psa:mission.hera"
     metadata["aspect_lid"] = "urn:esa:psa:milani.aspect"
 
-    target = "Didymos" if metadata.get("channel") == "didy" else "Dimorphos"
-    target_lid = (
-        "urn:nasa:pds:context:asteroid.65803_didymos"
-        if metadata.get("channel") == "didy"
-        else "urn:nasa:pds:context:satellite.65803_didymos.dimorphos"
-    )
+    raw_target = str(metadata.get("target") or "").strip().upper()
+    if "DIMORPHOS" in raw_target:
+        target = "Dimorphos"
+        target_lid = "urn:nasa:pds:context:satellite.65803_didymos.dimorphos"
+    elif "DIDYMOS" in raw_target:
+        target = "Didymos"
+        target_lid = "urn:nasa:pds:context:asteroid.65803_didymos"
+    elif metadata.get("channel") == "didy":
+        target = "Didymos"
+        target_lid = "urn:nasa:pds:context:asteroid.65803_didymos"
+    elif raw_target and raw_target not in ("UNK", "N/A", "NONE"):
+        target = raw_target.capitalize()
+        target_lid = "urn:nasa:pds:context:asteroid.65803_didymos"
+    else:
+        target = "Didymos"
+        target_lid = "urn:nasa:pds:context:asteroid.65803_didymos"
+
     metadata["target"] = target
     metadata["target_lid"] = target_lid
     metadata["net_integration_time"] = 1

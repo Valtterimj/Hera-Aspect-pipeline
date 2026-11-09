@@ -142,7 +142,7 @@ pds4:
 
   # (required fpr pds4) relative to this file or absolute
   # The directory or file that contains the file(s) that the label is generated for
-  input: "../outputs/0000"
+  input: "../outputs/0001"
 
   # (Required for pds4) Path to directory containing the templates. Relative to this config file or absolute.
   templates_dir: "../pds4_templates"

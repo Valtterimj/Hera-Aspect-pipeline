@@ -133,7 +133,44 @@
             </disp:Display_Settings>
 
             <!-- Geometry dictionary-->
-            <!-- These values comes from SPICE kernel and are optional to include-->
+            <!-- These values come from SPICE kernels and are optional to include-->
+            {% if mk_file_name and mk_file_name not in ['UNK', 'N/A', None] %}
+            <geom:Geometry>
+                <geom:SPICE_Kernel_Files>
+                    <geom:SPICE_Kernel_Identification>
+                        <geom:kernel_type>MK</geom:kernel_type>
+                        <geom:spice_kernel_file_name>{{ mk_file_name }}</geom:spice_kernel_file_name>
+                    </geom:SPICE_Kernel_Identification>
+                </geom:SPICE_Kernel_Files>
+                <geom:Geometry_Orbiter>
+                    <geom:geometry_start_time_utc>{{ start_date_time }}</geom:geometry_start_time_utc>
+                    <geom:geometry_stop_time_utc>{{ stop_date_time | default(start_date_time) }}</geom:geometry_stop_time_utc>
+                    {% if (earth_distance and earth_distance not in ['UNK', 'N/A', None]) or (sc_distance and sc_distance not in ['UNK', 'N/A', None]) or (target_distance and target_distance not in ['UNK', 'N/A', None]) %}
+                    <geom:Distances>
+                        <geom:Distances_Specific>
+                            {% if earth_distance and earth_distance not in ['UNK', 'N/A', None] %}
+                            <geom:spacecraft_geocentric_distance unit="AU">{{ earth_distance }}</geom:spacecraft_geocentric_distance>
+                            {% endif %}
+                            {% if sc_distance and sc_distance not in ['UNK', 'N/A', None] %}
+                            <geom:spacecraft_heliocentric_distance unit="AU">{{ sc_distance }}</geom:spacecraft_heliocentric_distance>
+                            {% endif %}
+                            {% if target_distance and target_distance not in ['UNK', 'N/A', None] %}
+                            <geom:spacecraft_target_center_distance unit="AU">{{ target_distance }}</geom:spacecraft_target_center_distance>
+                            {% endif %}
+                        </geom:Distances_Specific>
+                    </geom:Distances>
+                    {% endif %}
+                    {% if solar_elongation and solar_elongation not in ['UNK', 'N/A', None] %}
+                    <geom:Illumination_Geometry>
+                        <geom:Illumination_Specific>
+                            <geom:reference_location>Target Center</geom:reference_location>
+                            <geom:solar_elongation unit="deg">{{ solar_elongation }}</geom:solar_elongation>
+                        </geom:Illumination_Specific>
+                    </geom:Illumination_Geometry>
+                    {% endif %}
+                </geom:Geometry_Orbiter>
+            </geom:Geometry>
+            {% endif %}
 
             <!-- Image dictionary-->
             <img:Imaging>
