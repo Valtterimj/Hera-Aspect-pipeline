@@ -3,13 +3,14 @@ import logging
 import re
 import shutil
 from datetime import datetime, timezone, date
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any
 
 from jinja2 import Environment, FileSystemLoader
 import yaml
 
-from aspect_pipeline.pds4.fits_reader import read_fits_metadata
+from aspect_pipeline.pds4.fits_reader import read_fits_metadata, get_exposures
 from aspect_pipeline.utils.classes import Config, pds4_config
 from aspect_pipeline.utils.utilities import (
     convert_processing_levels,
@@ -26,6 +27,8 @@ CHANNEL_DISPLAY_MAP = {
     "nir2": "NIR2",
     "swir": "SWIR",
 }
+
+
 
 # Hera Mission Phases
 # Columns: Name, Abbreviation, Start Date, End Date
@@ -517,6 +520,24 @@ def find_level2_label_in_pds4(
     return None
 
 
+def _compute_net_integration_time(fits_path: Path) -> float | int:
+    """Sum exposure times [s] from FITS header keywords, defaulting to 1 if unavailable."""
+    exposures = get_exposures(fits_path)
+    if not exposures:
+        return 1
+    total = Decimal(0)
+    parsed_any = False
+    for raw_exp in exposures:
+        try:
+            total += Decimal(str(raw_exp).strip())
+            parsed_any = True
+        except (InvalidOperation, ValueError):
+            continue
+    if not parsed_any:
+        return 1
+    return float(total)
+
+
 def build_base_metadata(
     fits_path: Path,
     config: pds4_config | Config | Path | str | None = None,
@@ -611,7 +632,7 @@ def build_base_metadata(
 
     metadata["target"] = target
     metadata["target_lid"] = target_lid
-    metadata["net_integration_time"] = 1
+    metadata["net_integration_time"] = _compute_net_integration_time(fits_path)
 
     # Spectral Characteristics
     wavelengths_by_channel = {}

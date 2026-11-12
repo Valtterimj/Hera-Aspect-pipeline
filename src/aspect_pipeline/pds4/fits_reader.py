@@ -83,6 +83,7 @@ def _read_keywords(header: fits.Header, keyword_map: dict) -> dict:
             data["mk_file_name"] = f"{mk}.tm"
 
     return data
+    
 
 def _get_data_layout(hdul: fits.HDUList) -> list[dict]:
     """
@@ -131,6 +132,36 @@ def _get_data_layout(hdul: fits.HDUList) -> list[dict]:
         current_offset = data_offset + data_length
 
     return extensions
+
+def get_exposures(fits_file: Path) -> list[str] | None:
+    """Get all the exposures of an acquisition from the fits header"""
+    try:
+        with fits.open(fits_file) as hdul:
+            header = hdul[0].header
+            channels_raw = header.get('CHANNELS')
+            if not channels_raw:
+                raise ValueError('No channels found.')
+            channels = [ch.strip() for ch in str(channels_raw).split(',') if ch.strip()]
+            exposures = []
+            for channel in channels:
+                task_number = header.get(f'{channel}_TASK_NUMBER')
+                if task_number is not None:
+                    indices = [str(i).zfill(3) for i in range(int(task_number))]
+                else:
+                    frames_raw = header.get(f'{channel}_FRAMES')
+                    if not frames_raw:
+                        continue
+                    indices = [f.strip().zfill(3) for f in str(frames_raw).split(',') if f.strip()]
+                for index in indices:
+                    exp = header.get(f'{channel}_EXP_{index}', None)
+                    if exp is None:
+                        continue
+                    exposures.append(str(exp).strip())
+            if len(exposures) == 0:
+                return None
+            return exposures
+    except Exception:
+        return None
 
 
 def read_fits_metadata(fits_path: Path) -> dict:

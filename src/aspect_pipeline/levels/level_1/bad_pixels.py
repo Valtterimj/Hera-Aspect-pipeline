@@ -223,7 +223,7 @@ def replace_bad_pixels(hdul: HDUList, bp_file: Path) -> HDUList:
 
         hdul[0].data = new_data
 
-        logger.info(f"Dad pixels replaced for {channel}")
+        logger.info(f"Bad pixels replaced for {channel}")
         return hdul
 
     except Exception as e:

@@ -355,6 +355,14 @@
 
     {% if proclevl in ['1B', '1C'] %}
     <Reference_List>
+        {% if badpixel_references is defined and badpixel_references %}
+        {% for ref in badpixel_references %}
+        <Internal_Reference>
+            <lidvid_reference>{{ ref.lidvid }}</lidvid_reference>
+            <reference_type>{{ ref.reference_type }}</reference_type>
+        </Internal_Reference>
+        {% endfor %}
+        {% endif %}
         <Source_Product_Internal>
             <lidvid_reference>{{ raw_to_source_id }}</lidvid_reference>
             <reference_type>data_to_raw_source_product</reference_type>

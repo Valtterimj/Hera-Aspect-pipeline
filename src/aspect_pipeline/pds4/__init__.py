@@ -5,12 +5,22 @@ from aspect_pipeline.pds4.common import (
     find_level2_label_in_pds4,
     resolve_version,
 )
+from aspect_pipeline.pds4.bad_pixels import (
+    find_badpixel_target_dirs,
+    generate_bad_pixel_product,
+    generate_bad_pixels,
+    get_badpixel_references,
+)
 from aspect_pipeline.pds4.generate_pds4_label import generate_label
 from aspect_pipeline.pds4.level_1 import generate_level1_label
 from aspect_pipeline.pds4.level_2 import generate_level2_label
 from aspect_pipeline.pds4.level_3 import generate_level3_label
 
 __all__ = [
+    "find_badpixel_target_dirs",
+    "generate_bad_pixel_product",
+    "generate_bad_pixels",
+    "get_badpixel_references",
     "generate_label",
     "generate_level1_label",
     "generate_level2_label",

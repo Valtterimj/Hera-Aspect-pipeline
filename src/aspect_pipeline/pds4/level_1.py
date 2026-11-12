@@ -1,6 +1,7 @@
 import logging
 from pathlib import Path
 
+from aspect_pipeline.pds4.bad_pixels import get_badpixel_references
 from aspect_pipeline.pds4.common import build_base_metadata, save_pds4_product
 from aspect_pipeline.utils.classes import Config, pds4_config
 
@@ -104,6 +105,15 @@ def generate_level1_label(
     is_cube = any(c in channel for c in ["Vis", "NIR1", "NIR2"])
     metadata["data_local_id"] = "data_cube" if is_cube else "data_spectrum"
     metadata["spectrum_format"] = "3D" if is_cube else "1D"
+
+    metadata["badpixel_references"] = (
+        get_badpixel_references(
+            channels=[subunit] if subunit in ("vis", "nir1", "nir2", "swir") else channel_names,
+            templates_dir=templates_dir,
+        )
+        if proclevl in ("1B", "1C")
+        else []
+    )
 
     metadata["source_references"] = []
     metadata["raw_to_source_id"] = (

@@ -1,1 +1,7 @@
-Type    Col	    Row		    SizeX	    SizeY
+Type	Col	Row	SizeX	SizeY
+P	124	342	1	1
+P	512	89	1	1
+V	412	-	1	1024
+H	-	620	1024	1
+R	75	180	3	3
+R	900	450	2	4

@@ -265,6 +265,14 @@
 
     <!-- Provenance: Input Level 1 channel products stacked into Level 2 -->
     <Reference_List>
+        {% if badpixel_references is defined and badpixel_references %}
+        {% for ref in badpixel_references %}
+        <Internal_Reference>
+            <lidvid_reference>{{ ref.lidvid }}</lidvid_reference>
+            <reference_type>{{ ref.reference_type }}</reference_type>
+        </Internal_Reference>
+        {% endfor %}
+        {% endif %}
         {% if source_references is defined and source_references %}
         {% for ref in source_references %}
         <Source_Product_Internal>

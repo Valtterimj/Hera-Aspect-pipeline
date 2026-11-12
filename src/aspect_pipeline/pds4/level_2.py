@@ -1,6 +1,7 @@
 import logging
 from pathlib import Path
 
+from aspect_pipeline.pds4.bad_pixels import get_badpixel_references
 from aspect_pipeline.pds4.common import (
     CHANNEL_DISPLAY_MAP,
     build_base_metadata,
@@ -124,6 +125,15 @@ def generate_level2_label(
     metadata["data_unit"] = "1"
     metadata["data_local_id"] = "data_cube"
     metadata["spectrum_format"] = "3D"
+
+    metadata["badpixel_references"] = (
+        get_badpixel_references(
+            channels=found_channels,
+            templates_dir=templates_dir,
+        )
+        if proclevl in ("2", "2B")
+        else []
+    )
 
     metadata["source_references"] = source_references
     metadata["calibrated_to_source_id_vis"] = (

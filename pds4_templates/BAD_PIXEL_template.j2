@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-model href="https://pds.nasa.gov/pds4/pds/v1/PDS4_PDS_1O00.sch" schematypens="http://purl.oclc.org/dsdl/schematron"?>
+
+<Product_Observational
+    xmlns="http://pds.nasa.gov/pds4/pds/v1"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://pds.nasa.gov/pds4/pds/v1 https://pds.nasa.gov/pds4/pds/v1/PDS4_PDS_1O00.xsd">
+    <Identification_Area>
+        <logical_identifier>{{ logical_identifier | default('urn:esa:psa:hera:data_partially_processed:' ~ (detector_id | default('AS0') | lower) ~ '_badpixels') }}</logical_identifier>
+        <version_id>{{ version_id | default('1.0') }}</version_id>
+        <title>{{ title }}</title>
+        <information_model_version>1.24.0.0</information_model_version>
+        <product_class>Product_Observational</product_class>
+        <Modification_History>
+            <Modification_Detail>
+                <modification_date>{{ modification_date }}</modification_date>
+                <version_id>{{ version_id | default('1.0') }}</version_id>
+                <description>{{ modification_description | default('Initial delivery of on-ground calibrated bad pixel map.') }}</description>
+            </Modification_Detail>
+        </Modification_History>
+    </Identification_Area>
+    
+    <Observation_Area>
+        <Time_Coordinates>
+            <!-- Date when this calibration table became valid -->
+            <start_date_time>{{ start_date_time | default('2024-01-01T00:00:00Z') }}</start_date_time>
+            <stop_date_time>{{ stop_date_time | default('2030-12-31T23:59:59Z') }}</stop_date_time>
+        </Time_Coordinates>
+        
+        <Primary_Result_Summary>
+            <purpose>Calibration</purpose>
+            <processing_level>Partially Processed</processing_level>
+            <description>Bad pixel and defect region coordinates used for ground correction.</description>
+        </Primary_Result_Summary>
+        
+        <Investigation_Area>
+            <name>Hera</name>
+            <type>Mission</type>
+            <Internal_Reference>
+                <lid_reference>urn:esa:psa:mission.hera</lid_reference>
+                <reference_type>data_to_investigation</reference_type>
+            </Internal_Reference>
+        </Investigation_Area>
+        
+        <Observing_System>
+            <Observing_System_Component>
+                <name>Milani</name>
+                <type>Host</type>
+                <Internal_Reference>
+                    <lid_reference>urn:esa:psa:context:instrument_host:spacecraft.milani</lid_reference>
+                    <reference_type>is_instrument_host</reference_type>
+                </Internal_Reference>
+            </Observing_System_Component>
+            <Observing_System_Component>
+                <name>ASPECT</name>
+                <type>Instrument</type>
+                <description>ASPECT Hyperspectral Imager</description>
+                <Internal_Reference>
+                    <lid_reference>urn:esa:psa:context:instrument:milani.aspect</lid_reference>
+                    <reference_type>is_instrument</reference_type>
+                </Internal_Reference>
+            </Observing_System_Component>
+        </Observing_System>
+        
+        <Target_Identification>
+            <name>{{ target | default('Didymos') }}</name>
+            <type>Asteroid</type>
+            <Internal_Reference>
+                <lid_reference>{{ target_lid | default('urn:nasa:pds:context:asteroid.65803_didymos') }}</lid_reference>
+                <reference_type>data_to_target</reference_type>
+            </Internal_Reference>
+        </Target_Identification>
+    </Observation_Area>
+    
+    <File_Area_Observational>
+        <File>
+            <file_name>{{ file_name }}</file_name>
+            <file_size unit="byte">{{ file_size }}</file_size>
+            <md5_checksum>{{ md5_checksum }}</md5_checksum>
+        </File>
+        
+
+        <Table_Delimited>
+            <name>Bad Pixel Regions</name>
+            <offset unit="byte">{{ offset }}</offset> <!-- Offset to skip the 'Type Col Row SizeX SizeY' header line -->
+            <parsing_standard_id>PDS DSV 1</parsing_standard_id>
+            <description>Defective regions on the {{ detector_id }} detector: P=Pixel, H=Horizontal line, V=Vertical line, R=Rectangle.</description>
+            <records>{{ records }}</records> <!-- Number of defect rows -->
+            <record_delimiter>{{ record_delimiter | default('Line-Feed') }}</record_delimiter>
+            <field_delimiter>{{ field_delimiter | default('Horizontal Tab') }}</field_delimiter>
+            
+            <Record_Delimited>
+                <fields>5</fields>
+                <groups>0</groups>
+                <Field_Delimited>
+                    <name>Type</name>
+                    <field_number>1</field_number>
+                    <data_type>ASCII_String</data_type>
+                    <description>Type of defect: P (pixel), H (horizontal line), V (vertical line), R (rectangle)</description>
+                </Field_Delimited>
+                <Field_Delimited>
+                    <name>Col</name>
+                    <field_number>2</field_number>
+                    <data_type>ASCII_String</data_type>
+                    <description>Zero-based column index (or '-' if defect spans all columns)</description>
+                </Field_Delimited>
+                <Field_Delimited>
+                    <name>Row</name>
+                    <field_number>3</field_number>
+                    <data_type>ASCII_String</data_type>
+                    <description>Zero-based row index (or '-' if defect spans all rows)</description>
+                </Field_Delimited>
+                <Field_Delimited>
+                    <name>SizeX</name>
+                    <field_number>4</field_number>
+                    <data_type>ASCII_Integer</data_type>
+                    <description>Width of defective region in pixels</description>
+                </Field_Delimited>
+                <Field_Delimited>
+                    <name>SizeY</name>
+                    <field_number>5</field_number>
+                    <data_type>ASCII_Integer</data_type>
+                    <description>Height of defective region in pixels</description>
+                </Field_Delimited>
+            </Record_Delimited>
+        </Table_Delimited>
+    </File_Area_Observational>
+</Product_Observational>
+

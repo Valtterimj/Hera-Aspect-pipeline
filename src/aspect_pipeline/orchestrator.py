@@ -11,7 +11,7 @@ from aspect_pipeline.levels.level_0.run import run_level_0
 from aspect_pipeline.levels.level_1.run import run_level_1
 from aspect_pipeline.levels.level_2.run import run_level_2
 
-from aspect_pipeline.pds4.generate_pds4_label import generate_label, copy_schemas
+from aspect_pipeline.pds4.generate_pds4_label import generate_label, copy_schemas, generate_bad_pixels
 
 
 logger = logging.getLogger(__name__)
@@ -133,11 +133,18 @@ def run_generate_pds4(config_path: Path) -> None:
             output = input / 'pds4'
 
     schemas_source_dir = templates_dir.parent / "pds4_templates" / "schema"
+    badpixels_dir = templates_dir.resolve().parent / "calibration" / "BADPIXELS"
 
     if input.is_file():
         logger.info(f"Generating PDS4 product for file: {input}")
         try: 
             generate_label(input, templates_dir, output, config=cfg)
+            generate_bad_pixels(
+                output_pds4_dir=output / input.stem,
+                templates_dir=templates_dir,
+                badpixels_dir=badpixels_dir,
+                channels=channels,
+            )
         except Exception as e:
             raise PipelineError(f'Generating PDS4 label failed for file: {input} \nreason: {e}') 
     
@@ -153,6 +160,19 @@ def run_generate_pds4(config_path: Path) -> None:
                 logger.info(f"PDS4 product created for {file}. Saved to: {output}")
             except Exception as e:
                 raise PipelineError(f'Generating PDS4 label failed for file: {file} \nreason: {e}') 
+
+        bp_levels = [lvl for lvl in products if lvl in ("1B", "1C", "2", "2B")]
+        if bp_levels:
+            try:
+                generate_bad_pixels(
+                    output_pds4_dir=output,
+                    templates_dir=templates_dir,
+                    badpixels_dir=badpixels_dir,
+                    channels=channels,
+                    levels=bp_levels,
+                )
+            except Exception as e:
+                raise PipelineError(f'Generating PDS4 bad pixel labels failed \nreason: {e}')
 
     copy_schemas(schema_source_dir=schemas_source_dir, output_pds4_dir=output)
         

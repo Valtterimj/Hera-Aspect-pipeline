@@ -485,28 +485,7 @@ def get_wavelengths_by_channel(fits_file: Path) -> dict[str, list[int]]:
         all_wavelengths[channel] = wavelengths
     return all_wavelengths
 
-def get_exposures(fits_file: Path) -> list[str] | None:
-    """Get all the exposures of an acquisition from the fits header"""
-    try:
-        with fits.open(fits_file) as hdul:
-            header = hdul[0].header
-            channel = header.get('CHANNELS')
-            task_number = header.get(f'{channel}_TASK_NUMBER')
-            if task_number == None:
-                raise ValueError('No task number found.')
-            number = int(task_number)
-            exposures = []
-            for i in range(number):
-                index = str(i).zfill(3)
-                exp = header.get(f'{channel}_EXP_{index}', None)
-                if exp == None:
-                    continue
-                exposures.append(exp)
-            if len(exposures) == 0:
-                return None
-            return exposures
-    except Exception:
-        return None
+
 
 
 def check_order(sp: float, channel: str) -> str:
