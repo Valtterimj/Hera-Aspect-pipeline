@@ -19,7 +19,8 @@
 run:
 
   # (Required) Path to input data. Relative to this config file or absolute.
-  input_dir: "../data/simulated/didy-boulders-didysmoothed-10km"
+  # input_dir: "../data/simulated/1010"
+  input_dir: "../outputs/1010/"
   # input_dir: "../outputs/simulated"
 
   # (Optional) Root output directory for generated products. Absolute or empty. If left empty the files are saved to outputs/<missphase>.
@@ -75,7 +76,7 @@ data:
   missphas: "SIMULATED"
 
   # Acquisition ID
-  acq_id: "0001"
+  acq_id: "1010"
 
   "major_version": "1"
 
@@ -97,7 +98,7 @@ pipeline:
   # List of pipeline levels to execute.
   # Values: "0", "1", "1A", "1B", "1C", "2", "3", "3A", "3B", "3C"
   # E.g. ["0","1"]
-  levels: ["0", "1A", "1B", "1C", "2", "3A", "3C"]
+  levels: ["3A", "3C"]
 
   # List of channels included in processin
   # Values: "Vis", "NIR1", "NIR2", "SWIR"

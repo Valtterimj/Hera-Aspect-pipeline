@@ -104,7 +104,7 @@ def overlay_images(image1, image2, mode='red-green', title='Image Overlay'):
 
     return(rgb)
 
-def asteroid_mask_two(image: np.ndarray, visualise: bool = True):
+def asteroid_mask(image: np.ndarray, visualise: bool = True):
 
     original = image.copy()
     img = np.asarray(image)
@@ -152,68 +152,6 @@ def asteroid_mask_two(image: np.ndarray, visualise: bool = True):
         plt.show()
     return th
 
-def asteroid_mask(image: np.ndarray, erode: int = 2, visualise: bool = False) -> np.ndarray:
-    """
-    Creates a mask the asteroid. 
-    """
-    original = image.copy()
-    image = image.astype(np.float32, copy=False) # Ensure data is float32
-    edges = laplacian(image) # Detect asteroid edges
-
-    # convert to binary mask
-    edges_uint8 = cv2.normalize(edges, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
-    _, binary_mask = cv2.threshold(edges_uint8, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-
-    # Apply morphological dilation and closing to fill the asteroid center
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5,5))
-    dilated_mask = cv2.morphologyEx(binary_mask, cv2.MORPH_DILATE, kernel, iterations=2)
-    closed_mask = cv2.morphologyEx(dilated_mask, cv2.MORPH_CLOSE, kernel, iterations=3)
-    
-    # Draw the asteroid mask
-    contours, _ = cv2.findContours(closed_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    asteroid_mask = np.zeros_like(image, dtype=np.uint8)
-    cv2.drawContours(asteroid_mask, contours, -1, 255, thickness=cv2.FILLED)
-
-    # Erode the contours to select only the inner part of the asteroid
-    eros_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (15,15))
-    erosion_mask = cv2.morphologyEx(asteroid_mask, cv2.MORPH_ERODE, eros_kernel, iterations=1 )
-    eros_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9,9))
-    erosion_mask = cv2.morphologyEx(erosion_mask, cv2.MORPH_ERODE, eros_kernel, iterations=erode )
-
-    if visualise:
-        fig, axs = plt.subplots(1, 5, figsize=(20, 4))
-        axs[0].imshow(original, cmap='gray')
-        axs[0].set_title("Original")
-        axs[1].imshow(binary_mask, cmap='gray')
-        axs[1].set_title("Edges")
-        axs[2].imshow(dilated_mask, cmap='gray')
-        axs[2].set_title("Dilated")
-        axs[3].imshow(closed_mask, cmap='gray')
-        axs[3].set_title("Closing")
-        axs[4].imshow(erosion_mask, cmap='gray')
-        axs[4].set_title("Final Mask")
-        for ax in axs:
-            ax.axis('off')
-        plt.tight_layout()
-        plt.show()
-    
-        legend_elements = [
-            Patch(facecolor='yellow', edgecolor='black', label='Aligned regions'),
-            Patch(facecolor='red', edgecolor='black', label='Only in original'),
-            Patch(facecolor='green', edgecolor='black', label='mask')
-        ]
-
-        overlay = overlay_images(original, erosion_mask)
-        plt.figure()
-        plt.suptitle('Vis and Nir frame overlay', fontsize=16)
-        plt.imshow(overlay)
-        plt.axis('off')      
-        plt.figlegend(handles=legend_elements, loc='lower center', ncol=3, frameon=True, fontsize='medium')
-        plt.tight_layout(rect=[0, 0.05, 1, 0.95])  # Adjust to make room for legend and title
-        plt.show()
-    
-    return erosion_mask
-
 def extract_asteroid(image_cube: np.ndarray, mask_index: int = 0, visualise: bool = False) -> List[Tuple[np.ndarray, np.ndarray]]:
     """
     Extracts the asteroid spectra from the 3D datacube.
@@ -227,7 +165,7 @@ def extract_asteroid(image_cube: np.ndarray, mask_index: int = 0, visualise: boo
     """
     image = image_cube[mask_index]
     # mask = asteroid_mask(image, erode=2, visualise=visualise)
-    mask = asteroid_mask_two(image, visualise=visualise)
+    mask = asteroid_mask(image, visualise=visualise)
 
     #Store the coordinates of the image where mask has value of non 0
     coords = np.argwhere(mask != 0)

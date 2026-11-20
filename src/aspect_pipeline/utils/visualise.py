@@ -64,7 +64,23 @@ def _browse_cube(path: Path, data: np.ndarray) -> None:
     plt.show()
 
 
-def visualise_fits_file(path: Path) -> None:
+def _save_frame_png(frame: np.ndarray, out_path: Path) -> None:
+    """Write a 2D frame as a grayscale PNG at native resolution, scaled to its finite min/max.
+
+    Non-finite pixels (NaN/inf) are written as black.
+
+    Args:
+        frame: 2D array of pixel values.
+        out_path: destination PNG path; overwritten if it exists.
+    """
+    finite = frame[np.isfinite(frame)]
+    vmin, vmax = (float(finite.min()), float(finite.max())) if finite.size else (0.0, 0.0)
+    filled = np.where(np.isfinite(frame), frame, vmin)
+    plt.imsave(out_path, filled, cmap="gray", vmin=vmin, vmax=vmax)
+    print(f"saved {out_path}")
+
+
+def visualise_fits_file(path: Path, save: bool = False) -> None:
     """
     Print the primary HDU header of a FITS file, then visualise its data.
 
@@ -74,10 +90,18 @@ def visualise_fits_file(path: Path) -> None:
     left/right arrow keys step through frames, printing each frame's
     min/max/mean as it is shown.
 
+    With save=True, the first frame (frame 0 of a cube, or the 2D image) is
+    also written as a grayscale PNG next to the FITS file, with the same name
+    and a .png suffix, before the viewer opens. The PNG holds only the pixel
+    data at native resolution, scaled to the frame's finite min/max; NaN
+    pixels are black. An existing PNG of that name is overwritten.
+
     :param path: path to the FITS file
     :type path: Path
+    :param save: also save the first frame as a PNG next to the FITS file
+    :type save: bool
     :raises ValueError: if the primary HDU data has an unsupported number of
-        dimensions (not 1D, 2D or 3D)
+        dimensions (not 1D, 2D or 3D), or save=True and the data is 1D
     """
     path = Path(path)
     with fits.open(path, memmap=False) as hdul:
@@ -86,6 +110,14 @@ def visualise_fits_file(path: Path) -> None:
         if data is None:
             return
         data = np.array(data)
+
+    if save:
+        if data.ndim == 2:
+            _save_frame_png(data, path.with_suffix(".png"))
+        elif data.ndim == 3:
+            _save_frame_png(data[0], path.with_suffix(".png"))
+        else:
+            raise ValueError(f"{path}: cannot save ndim={data.ndim} data as PNG (need 2D or 3D)")
 
     if data.ndim == 1:
         print(data)

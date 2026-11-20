@@ -85,6 +85,11 @@ def main() -> None:
         default=None,
         help="Paths to a Vis and a NIR FITS file; shows each alignment step and the warped overlay"
     )
+    view.add_argument(
+        "--save",
+        action="store_true",
+        help="With --fits: also save the first frame as a PNG next to the FITS file"
+    )
 
     make_test = sub.add_parser("make-test-set", help="Generate a synthetic raw/calibration test set", parents=[log_options])
     make_test.add_argument(
@@ -123,6 +128,8 @@ def main() -> None:
         )
 
     args = parser.parse_args()
+    if args.cdm == "view" and args.save and not args.fits:
+        parser.error("--save can only be used with --fits")
 
     setup_logging('DEBUG' if args.verbose else 'WARNING' if args.quiet else 'INFO')
 
@@ -148,7 +155,7 @@ def main() -> None:
                 visualise_alignment,
             )
             if args.fits:
-                visualise_fits_file(Path(args.fits).expanduser())
+                visualise_fits_file(Path(args.fits).expanduser(), save=args.save)
             elif args.bin:
                 visualise_bin_file(Path(args.bin).expanduser())
             elif args.alignment:

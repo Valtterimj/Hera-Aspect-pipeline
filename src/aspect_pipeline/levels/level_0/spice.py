@@ -25,18 +25,12 @@ Memo:
 - hera_ops.tm is later updated with asteroid phase cubesat trajectories
 """
 
-test_time = '2025-06-15T05:40:46.6666'
-test_time = '2027-01-02T05:40:46.6666'
-
-test_et = None
-
 def load_meta_kernel(mk: str | Path):
     """Load the given meta-kernel (.tm) file."""
     mk = str(mk)
     try:
         spice.furnsh(mk)
         print(f"Loaded meta-kernel: {mk}")
-        test_et = spice.utc2et(test_time)
     except Exception as e:
         raise Exception(f"Caught an exception while loading meta kernel {mk}: {e}")
 
@@ -123,7 +117,7 @@ def get_sclk(et: float, sc_frame: str) -> str:
 
 def query_position_distance(
         target: str = 'SUN',
-        et: float = test_et,
+        et: float = None,
 		frame: str = 'J2000', # Is this the correct frame?
         abcorr: str = 'NONE',
 		observer: str = 'MILANI_SPACECRAFT'
@@ -156,7 +150,7 @@ def query_position_distance(
 
 def query_spacecraft_quaternions(
         frame_name: str = 'HERA_SPACECRAFT',
-        et: str = test_et,
+        et: str = None,
         tol: int = 1.0,
         ref: str = 'J2000'
     ) -> np.ndarray: 
@@ -217,7 +211,7 @@ def get_boresight_vector(inst_id: int) -> np.ndarray:
 
 def query_camera_pointing_info(
         camera_frame: str = 'MILANI_NAVCAM',
-        et: float = test_et,
+        et: float = None,
         inertial_frame: str = 'J2000',
         target_frame: str = 'DIDYMOS_FIXED',
     ): 
@@ -260,7 +254,7 @@ def query_camera_pointing_info(
 
 def query_camera_solar_elongation(
     camera_frame: str = 'MILANI_NAVCAM',
-    et: float = test_et, 
+    et: float = None, 
     abcorr: str = 'LT+S',
     observer:str = 'MILANI_SPACECRAFT'
     ) -> float:
